@@ -1,20 +1,13 @@
 from fastapi import FastAPI
 
-from app.database.connection import engine
-from app.database.base import Base
+from app.core.config import settings
 
-import app.models.user
-
-Base.metadata.create_all(bind=engine)
-
-app = FastAPI(
-    title="SentinelX API",
-    version="0.1.0",
-)
+app = FastAPI(title=settings.app_name)
 
 
 @app.get("/")
 def root():
     return {
-        "message": "SentinelX Backend Running"
+        "application": settings.app_name,
+        "debug": settings.debug,
     }
