@@ -17,6 +17,7 @@ from app.services.user_service import (
     get_user_by_email,
     get_user_by_username,
 )
+from app.core.permissions import require_superuser
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -87,3 +88,11 @@ def read_current_user(
     current_user: User = Depends(get_current_user),
 ):
     return current_user
+
+@router.get("/admin")
+def admin_dashboard(
+    current_user: User = Depends(require_superuser),
+):
+    return {
+        "message": "Welcome, administrator!",
+    }
