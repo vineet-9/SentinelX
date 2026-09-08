@@ -1,25 +1,28 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
+from app.core.permissions import require_superuser
 from app.core.security import (
     create_access_token,
     hash_password,
     verify_password,
 )
-from app.database.dependencies import get_db
+from app.database.dependencies import get_current_user, get_db
 from app.models.user import User
 from app.schemas.auth import Token
-from fastapi.security import OAuth2PasswordRequestForm
-from app.database.dependencies import get_current_user
 from app.schemas.user import UserCreate, UserRead
+from app.services.audit_service import create_audit_log
 from app.services.user_service import (
     create_user,
     get_user_by_email,
     get_user_by_username,
 )
-from app.core.permissions import require_superuser
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(
+    prefix="/auth",
+    tags=["Authentication"],
+)
 
 
 @router.post(
@@ -28,18 +31,19 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
     status_code=status.HTTP_201_CREATED,
 )
 def register(
+    request: Request,
     user_data: UserCreate,
     db: Session = Depends(get_db),
 ):
     if get_user_by_email(db, user_data.email):
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered",
         )
 
     if get_user_by_username(db, user_data.username):
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already exists",
         )
 
@@ -49,7 +53,16 @@ def register(
         hashed_password=hash_password(user_data.password),
     )
 
-    return create_user(db, user)
+    created_user = create_user(db, user)
+
+    create_audit_log(
+        db=db,
+        event="User Registered",
+        user_email=created_user.email,
+        ip_address=request.client.host,
+    )
+
+    return created_user
 
 
 @router.post(
@@ -57,6 +70,7 @@ def register(
     response_model=Token,
 )
 def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
@@ -79,15 +93,27 @@ def login(
 
     access_token = create_access_token(str(user.id))
 
+    create_audit_log(
+        db=db,
+        event="User Login",
+        user_email=user.email,
+        ip_address=request.client.host,
+    )
+
     return Token(
         access_token=access_token,
     )
 
-@router.get("/me", response_model=UserRead)
+
+@router.get(
+    "/me",
+    response_model=UserRead,
+)
 def read_current_user(
     current_user: User = Depends(get_current_user),
 ):
     return current_user
+
 
 @router.get("/admin")
 def admin_dashboard(
