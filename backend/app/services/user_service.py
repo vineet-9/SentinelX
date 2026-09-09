@@ -20,6 +20,7 @@ def create_user(db: Session, user: User) -> User:
     db.refresh(user)
     return user
 
+
 def get_user_by_id(
     db: Session,
     user_id: str,
