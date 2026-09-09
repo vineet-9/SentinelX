@@ -1,14 +1,13 @@
 import hashlib
 from pathlib import Path
+from uuid import UUID
 
 from fastapi import UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.scan import Scan
-
-import yara
 from app.core.yara_engine import scan_file
+from app.models.scan import Scan
 
 UPLOAD_DIR = Path("app/uploads")
 
@@ -21,7 +20,6 @@ def save_file(file: UploadFile) -> tuple[str, str]:
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
     file_path = UPLOAD_DIR / file.filename
-
     content = file.file.read()
 
     with open(file_path, "wb") as buffer:
@@ -33,6 +31,11 @@ def save_file(file: UploadFile) -> tuple[str, str]:
 
 
 def analyze_file(file_path: str) -> tuple[bool, str | None]:
+    """
+    Scan a file using the YARA engine.
+    Returns:
+        (is_malicious, matched_rule)
+    """
     return scan_file(file_path)
 
 
@@ -42,6 +45,22 @@ def get_scan_by_sha256(
 ) -> Scan | None:
     statement = select(Scan).where(Scan.sha256 == sha256)
     return db.execute(statement).scalar_one_or_none()
+
+
+def get_scan_by_id(
+    db: Session,
+    scan_id: UUID,
+) -> Scan | None:
+    statement = select(Scan).where(Scan.id == scan_id)
+    return db.execute(statement).scalar_one_or_none()
+
+
+def get_all_scans(db: Session) -> list[Scan]:
+    """
+    Return all scans ordered from newest to oldest.
+    """
+    statement = select(Scan).order_by(Scan.uploaded_at.desc())
+    return db.execute(statement).scalars().all()
 
 
 def create_scan(
