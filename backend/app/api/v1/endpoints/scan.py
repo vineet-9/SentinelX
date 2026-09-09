@@ -1,18 +1,19 @@
-from fastapi import APIRouter, Depends, File, UploadFile
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.database.dependencies import get_db
-from app.schemas.scan import ScanResponse
+from app.schemas.scan import ScanResponse, ScanStatsResponse
 from app.services.scan_service import (
     analyze_file,
     create_scan,
     get_all_scans,
     get_scan_by_id,
     get_scan_by_sha256,
+    get_scan_stats,
     save_file,
 )
-from fastapi import HTTPException
-from uuid import UUID
 
 router = APIRouter(
     prefix="/scan",
@@ -28,18 +29,16 @@ def upload_file(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-    # Save uploaded file
+
     file_path, sha256 = save_file(file)
 
-    # Return existing scan if already scanned
     existing_scan = get_scan_by_sha256(db, sha256)
+
     if existing_scan:
         return existing_scan
 
-    # Analyze file
     is_malicious, matched_rule = analyze_file(file_path)
 
-    # Save result
     scan = create_scan(
         db=db,
         filename=file.filename,
@@ -59,7 +58,20 @@ def upload_file(
 def scan_history(
     db: Session = Depends(get_db),
 ):
+
     return get_all_scans(db)
+
+
+@router.get(
+    "/stats",
+    response_model=ScanStatsResponse,
+)
+def scan_stats(
+    db: Session = Depends(get_db),
+):
+
+    return get_scan_stats(db)
+
 
 @router.get(
     "/{scan_id}",
@@ -69,9 +81,10 @@ def get_scan(
     scan_id: UUID,
     db: Session = Depends(get_db),
 ):
+
     scan = get_scan_by_id(db, scan_id)
 
-    if scan is None:
+    if not scan:
         raise HTTPException(
             status_code=404,
             detail="Scan not found",
