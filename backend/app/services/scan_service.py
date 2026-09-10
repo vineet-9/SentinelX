@@ -8,6 +8,9 @@ from sqlalchemy.orm import Session
 
 from app.core.yara_engine import scan_file
 from app.models.scan import Scan
+from uuid import UUID
+
+from datetime import datetime
 
 UPLOAD_DIR = Path("app/uploads")
 
@@ -122,3 +125,32 @@ def get_scan_stats(db: Session):
         "clean": clean,
         "last_scan": last_scan,
     }
+
+def get_scan_by_id(
+    db: Session,
+    scan_id: UUID,
+) -> Scan | None:
+    statement = select(Scan).where(Scan.id == scan_id)
+    return db.execute(statement).scalar_one_or_none()
+
+def update_scan_virustotal(
+    db: Session,
+    scan: Scan,
+    vt_data: dict,
+) -> Scan:
+    """
+    Save VirusTotal analysis results to the database.
+    """
+
+    scan.vt_found = True
+    scan.vt_malicious = vt_data.get("malicious", 0)
+    scan.vt_suspicious = vt_data.get("suspicious", 0)
+    scan.vt_harmless = vt_data.get("harmless", 0)
+    scan.vt_undetected = vt_data.get("undetected", 0)
+    scan.vt_reputation = vt_data.get("reputation", 0)
+    scan.vt_last_analysis_date = vt_data.get("last_analysis_date")
+
+    db.commit()
+    db.refresh(scan)
+
+    return scan

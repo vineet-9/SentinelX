@@ -1,12 +1,20 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Integer,
+    String,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import Boolean, DateTime, String, func
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.database.base import Base
+from sqlalchemy import Integer
+from sqlalchemy import BigInteger
 
 
 class Scan(Base):
@@ -50,4 +58,45 @@ class Scan(Base):
         String(20),
         default="pending",
         nullable=False,
+    )
+
+    vt_found: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
+
+    vt_malicious: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    vt_suspicious: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    vt_harmless: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    vt_undetected: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    vt_reputation: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    vt_last_analysis_date: Mapped[int | None] = mapped_column(
+        BigInteger,
+        nullable=True,
     )
