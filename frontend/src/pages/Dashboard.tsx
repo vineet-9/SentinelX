@@ -2,16 +2,46 @@ import {
   Shield,
   Bug,
   CheckCircle,
-  Clock,
 } from "lucide-react";
 
 import StatCard from "@/components/dashboard/StatCard";
 import RecentScans from "@/components/dashboard/RecentScans";
+import { useDashboard } from "@/hooks/useDashboard";
 
 export default function Dashboard() {
+  const {
+    stats,
+    scans,
+    loading,
+    error,
+  } = useDashboard();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="text-zinc-400">
+          Loading dashboard...
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !stats) {
+    return (
+      <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-6">
+        <h2 className="font-semibold text-red-400">
+          Dashboard unavailable
+        </h2>
+
+        <p className="mt-2 text-sm text-red-300">
+          {error ?? "Unable to load dashboard data."}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -35,42 +65,34 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stat Cards */}
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+      {/* Statistics */}
+      <div className="grid gap-6 md:grid-cols-3">
         <StatCard
           title="Total Scans"
-          value={124}
+          value={stats.total_scans}
           icon={Shield}
-          trend="+14 today"
+          trend="Live"
         />
 
         <StatCard
           title="Malicious"
-          value={12}
+          value={stats.malicious}
           icon={Bug}
           iconColor="text-red-400"
-          trend="+2 today"
+          trend="Detected"
         />
 
         <StatCard
           title="Clean"
-          value={108}
+          value={stats.clean}
           icon={CheckCircle}
           iconColor="text-green-400"
-          trend="+11 today"
-        />
-
-        <StatCard
-          title="Pending"
-          value={4}
-          icon={Clock}
-          iconColor="text-yellow-400"
-          trend="Processing"
+          trend="Safe"
         />
       </div>
 
       {/* Recent Scans */}
-      <RecentScans />
+      <RecentScans scans={scans} />
     </div>
   );
 }
