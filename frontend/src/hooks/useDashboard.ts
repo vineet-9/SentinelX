@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   getDashboardStats,
@@ -9,38 +9,42 @@ import {
 
 export function useDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+
   const [scans, setScans] = useState<Scan[]>([]);
+
   const [loading, setLoading] = useState(true);
+
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadDashboard() {
-      try {
-        setLoading(true);
-        setError(null);
+  const loadDashboard = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        const [statsData, historyData] = await Promise.all([
-          getDashboardStats(),
-          getScanHistory(),
-        ]);
+      const [statsData, historyData] = await Promise.all([
+        getDashboardStats(),
+        getScanHistory(),
+      ]);
 
-        setStats(statsData);
-        setScans(historyData);
-      } catch (err) {
-        console.error(err);
-        setError("Unable to load dashboard data.");
-      } finally {
-        setLoading(false);
-      }
+      setStats(statsData);
+      setScans(historyData);
+    } catch (err) {
+      console.error(err);
+      setError("Unable to load dashboard data.");
+    } finally {
+      setLoading(false);
     }
-
-    loadDashboard();
   }, []);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
 
   return {
     stats,
     scans,
     loading,
     error,
+    refresh: loadDashboard,
   };
 }
