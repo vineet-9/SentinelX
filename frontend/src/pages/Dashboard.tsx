@@ -71,6 +71,8 @@ export default function Dashboard() {
           title="Total Scans"
           value={stats.total_scans}
           icon={Shield}
+          iconColor="text-blue-400"
+          accentColor="bg-blue-500"
           trend="Live"
         />
 
@@ -79,6 +81,7 @@ export default function Dashboard() {
           value={stats.malicious}
           icon={Bug}
           iconColor="text-red-400"
+          accentColor="bg-red-500"
           trend="Detected"
         />
 
@@ -87,6 +90,7 @@ export default function Dashboard() {
           value={stats.clean}
           icon={CheckCircle}
           iconColor="text-green-400"
+          accentColor="bg-green-500"
           trend="Safe"
         />
       </div>

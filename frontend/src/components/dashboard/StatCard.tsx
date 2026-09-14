@@ -7,6 +7,7 @@ type Props = {
   value: number;
   icon: LucideIcon;
   iconColor?: string;
+  accentColor?: string;
   trend?: string;
 };
 
@@ -15,12 +16,14 @@ export default function StatCard({
   value,
   icon: Icon,
   iconColor = "text-blue-400",
+  accentColor = "bg-blue-500",
   trend,
 }: Props) {
   return (
     <Card className="relative overflow-hidden">
-      {/* Accent Bar */}
-      <div className="absolute left-0 top-0 h-full w-1 bg-blue-500" />
+      <div
+        className={`absolute left-0 top-0 h-full w-1 ${accentColor}`}
+      />
 
       <div className="flex items-center justify-between">
         <div>
@@ -33,7 +36,7 @@ export default function StatCard({
           </h2>
 
           {trend && (
-            <p className="mt-3 text-sm text-green-400">
+            <p className="mt-3 text-sm text-zinc-400">
               {trend}
             </p>
           )}
