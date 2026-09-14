@@ -217,10 +217,15 @@ export default function Upload() {
       )}
 
       {/* Scan Result */}
+      {/* Scan Result */}
       {result && (
         <Card>
           <div className="mb-6 flex items-center gap-3">
-            <CheckCircle className="h-6 w-6 text-green-400" />
+            {result.is_malicious ? (
+              <AlertTriangle className="h-6 w-6 text-red-400" />
+            ) : (
+              <CheckCircle className="h-6 w-6 text-green-400" />
+            )}
 
             <div>
               <h2 className="text-xl font-semibold text-white">
@@ -233,8 +238,32 @@ export default function Upload() {
             </div>
           </div>
 
-          <div className="space-y-5">
+          {/* Detection Banner */}
+          <div
+            className={`mb-6 rounded-xl border p-5 ${
+              result.is_malicious
+                ? "border-red-500/30 bg-red-500/10"
+                : "border-green-500/30 bg-green-500/10"
+            }`}
+          >
+            <p className="text-sm text-zinc-400">
+              Detection Result
+            </p>
 
+            <p
+              className={`mt-1 text-2xl font-bold ${
+                result.is_malicious
+                  ? "text-red-400"
+                  : "text-green-400"
+              }`}
+            >
+              {result.is_malicious
+                ? "Malicious"
+                : "Clean"}
+            </p>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2">
             {/* Filename */}
             {result.filename && (
               <div>
@@ -242,55 +271,8 @@ export default function Upload() {
                   File
                 </p>
 
-                <p className="mt-1 text-white">
+                <p className="mt-1 font-medium text-white">
                   {result.filename}
-                </p>
-              </div>
-            )}
-
-            {/* SHA256 */}
-            {result.sha256 && (
-              <div>
-                <p className="text-sm text-zinc-500">
-                  SHA256
-                </p>
-
-                <code className="mt-1 block break-all text-sm text-zinc-300">
-                  {result.sha256}
-                </code>
-              </div>
-            )}
-
-            {/* Detection */}
-            {typeof result.is_malicious === "boolean" && (
-              <div>
-                <p className="text-sm text-zinc-500">
-                  Detection
-                </p>
-
-                <p
-                  className={`mt-1 font-semibold ${
-                    result.is_malicious
-                      ? "text-red-400"
-                      : "text-green-400"
-                  }`}
-                >
-                  {result.is_malicious
-                    ? "Malicious"
-                    : "Clean"}
-                </p>
-              </div>
-            )}
-
-            {/* Matched Rule */}
-            {result.matched_rule && (
-              <div>
-                <p className="text-sm text-zinc-500">
-                  Matched Rule
-                </p>
-
-                <p className="mt-1 text-red-400">
-                  {result.matched_rule}
                 </p>
               </div>
             )}
@@ -302,8 +284,21 @@ export default function Upload() {
                   Scan Status
                 </p>
 
-                <p className="mt-1 text-zinc-300">
+                <p className="mt-1 font-medium text-green-400">
                   {result.scan_status}
+                </p>
+              </div>
+            )}
+
+            {/* Matched Rule */}
+            {result.matched_rule && (
+              <div>
+                <p className="text-sm text-zinc-500">
+                  Matched YARA Rule
+                </p>
+
+                <p className="mt-1 font-medium text-red-400">
+                  {result.matched_rule}
                 </p>
               </div>
             )}
@@ -315,20 +310,27 @@ export default function Upload() {
                   VirusTotal
                 </p>
 
-                <p
-                  className={`mt-1 font-semibold ${
-                    result.vt_found
-                      ? "text-blue-400"
-                      : "text-zinc-400"
-                  }`}
-                >
+                <p className="mt-1 font-medium text-blue-400">
                   {result.vt_found
-                    ? "Hash found in VirusTotal"
-                    : "Hash not found in VirusTotal"}
+                    ? "Hash found"
+                    : "Hash not found"}
                 </p>
               </div>
             )}
           </div>
+
+          {/* SHA256 */}
+          {result.sha256 && (
+            <div className="mt-5">
+              <p className="text-sm text-zinc-500">
+                SHA256
+              </p>
+
+              <code className="mt-2 block break-all rounded-lg bg-zinc-950 p-3 text-xs text-zinc-300">
+                {result.sha256}
+              </code>
+            </div>
+          )}
         </Card>
       )}
     </div>
