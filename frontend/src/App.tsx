@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import MainLayout from "./components/layout/MainLayout";
+import ScanDetails from "./pages/ScanDetails";
 
 import Dashboard from "./pages/Dashboard";
 import Upload from "./pages/Upload";
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/upload" element={<Upload />} />
           <Route path="/history" element={<History />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/scan/:scanId" element={<ScanDetails />} />
         </Route>
       </Routes>
     </BrowserRouter>

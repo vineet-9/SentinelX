@@ -5,6 +5,8 @@ import {
   FileCode2,
 } from "lucide-react";
 
+import { useNavigate } from "react-router-dom";
+
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 
@@ -52,6 +54,8 @@ function getFileIcon(filename: string) {
 }
 
 export default function RecentScans({ scans }: Props) {
+  const navigate = useNavigate();
+
   return (
     <Card>
       {/* Section Header */}
@@ -92,7 +96,10 @@ export default function RecentScans({ scans }: Props) {
             {scans.map((scan) => (
               <tr
                 key={scan.id}
-                className="border-b border-zinc-800/70 transition-colors hover:bg-zinc-800/40 last:border-none"
+                onClick={() =>
+                  navigate(`/scan/${scan.id}`)
+                }
+                className="cursor-pointer border-b border-zinc-800/70 transition-colors hover:bg-zinc-800/40 last:border-none"
               >
                 {/* File */}
                 <td className="py-4">
