@@ -1,12 +1,14 @@
-import { NavLink } from "react-router-dom";
 import {
-  LayoutDashboard,
-  Upload,
   History,
-  User,
+  LayoutDashboard,
   LogOut,
   Shield,
+  Upload,
+  User,
 } from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
+
+import { removeToken } from "@/services/authService";
 
 const menuItems = [
   {
@@ -32,18 +34,26 @@ const menuItems = [
 ];
 
 export default function Sidebar() {
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    removeToken();
+    navigate("/login", { replace: true });
+  }
+
   return (
-    <aside className="w-64 h-screen bg-slate-900 border-r border-slate-800 flex flex-col">
+    <aside className="flex h-screen w-64 flex-col border-r border-slate-800 bg-slate-900">
       {/* Logo */}
-      <div className="flex items-center gap-3 p-6 border-b border-slate-800">
-        <Shield className="w-8 h-8 text-blue-500" />
+      <div className="flex items-center gap-3 border-b border-slate-800 p-6">
+        <Shield className="h-8 w-8 text-blue-500" />
+
         <h1 className="text-xl font-bold text-white">
           SentinelX
         </h1>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-6 space-y-2">
+      <nav className="flex-1 space-y-2 px-4 py-6">
         {menuItems.map((item) => {
           const Icon = item.icon;
 
@@ -68,7 +78,11 @@ export default function Sidebar() {
 
       {/* Logout */}
       <div className="border-t border-slate-800 p-4">
-        <button className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-slate-300 hover:bg-red-600 hover:text-white transition">
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-slate-300 transition hover:bg-red-600 hover:text-white"
+        >
           <LogOut size={20} />
           Logout
         </button>
