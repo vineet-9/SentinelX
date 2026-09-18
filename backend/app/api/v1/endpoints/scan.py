@@ -3,10 +3,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from app.database.dependencies import get_db
+from app.database.dependencies import get_current_user, get_db
+from app.models.user import User
 from app.schemas.scan import ScanResponse, ScanStatsResponse
 from app.schemas.virustotal import VirusTotalResponse
-
 from app.services.scan_service import (
     analyze_file,
     create_scan,
@@ -17,7 +17,6 @@ from app.services.scan_service import (
     save_file,
     update_scan_virustotal,
 )
-
 from app.services.virustotal import lookup_file
 
 router = APIRouter(
@@ -33,10 +32,12 @@ router = APIRouter(
 def upload_file(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     file_path, sha256 = save_file(file)
 
     existing_scan = get_scan_by_sha256(db, sha256)
+
     if existing_scan:
         return existing_scan
 
@@ -60,6 +61,7 @@ def upload_file(
 )
 def scan_history(
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     return get_all_scans(db)
 
@@ -70,6 +72,7 @@ def scan_history(
 )
 def scan_stats(
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     return get_scan_stats(db)
 
@@ -81,6 +84,7 @@ def scan_stats(
 def get_scan(
     scan_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     scan = get_scan_by_id(db, scan_id)
 
@@ -100,6 +104,7 @@ def get_scan(
 def get_virustotal_report(
     scan_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     scan = get_scan_by_id(db, scan_id)
 
