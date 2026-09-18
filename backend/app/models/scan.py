@@ -5,16 +5,15 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     DateTime,
+    ForeignKey,
     Integer,
     String,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
-from sqlalchemy import Integer
-from sqlalchemy import BigInteger
 
 
 class Scan(Base):
@@ -24,6 +23,13 @@ class Scan(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True,
     )
 
     filename: Mapped[str] = mapped_column(

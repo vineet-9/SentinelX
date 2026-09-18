@@ -1,9 +1,12 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database.dependencies import get_current_user, get_db
+from app.models.scan import Scan
 from app.models.user import User
 from app.schemas.scan import ScanResponse, ScanStatsResponse
 from app.schemas.virustotal import VirusTotalResponse
@@ -18,6 +21,7 @@ from app.services.scan_service import (
     update_scan_virustotal,
 )
 from app.services.virustotal import lookup_file
+
 
 router = APIRouter(
     prefix="/scan",
@@ -36,21 +40,58 @@ def upload_file(
 ):
     file_path, sha256 = save_file(file)
 
-    existing_scan = get_scan_by_sha256(db, sha256)
+    # First check whether this user already has this scan.
+    existing_scan = get_scan_by_sha256(
+        db=db,
+        sha256=sha256,
+        user_id=current_user.id,
+    )
 
     if existing_scan:
         return existing_scan
 
+    # The database currently enforces globally unique SHA256 values.
+    # Check for another user's scan without exposing its details.
+    global_existing_scan = db.scalar(
+        select(Scan).where(Scan.sha256 == sha256)
+    )
+
+    if global_existing_scan:
+        raise HTTPException(
+            status_code=409,
+            detail="A scan for this file already exists.",
+        )
+
     is_malicious, matched_rule = analyze_file(file_path)
 
-    scan = create_scan(
-        db=db,
-        filename=file.filename,
-        sha256=sha256,
-        is_malicious=is_malicious,
-        matched_rule=matched_rule,
-        scan_status="COMPLETED",
-    )
+    try:
+        scan = create_scan(
+            db=db,
+            user_id=current_user.id,
+            filename=file.filename,
+            sha256=sha256,
+            is_malicious=is_malicious,
+            matched_rule=matched_rule,
+            scan_status="COMPLETED",
+        )
+    except IntegrityError:
+        db.rollback()
+
+        # Protect against a race where another request created
+        # the same SHA256 between the checks above.
+        existing_scan = get_scan_by_sha256(
+            db=db,
+            sha256=sha256,
+            user_id=current_user.id,
+        )
+
+        if existing_scan:
+            return existing_scan
+
+        raise HTTPException(
+            status_code=409,
+            detail="A scan for this file already exists.",
+        )
 
     return scan
 
@@ -63,7 +104,10 @@ def scan_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return get_all_scans(db)
+    return get_all_scans(
+        db=db,
+        user_id=current_user.id,
+    )
 
 
 @router.get(
@@ -74,7 +118,10 @@ def scan_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return get_scan_stats(db)
+    return get_scan_stats(
+        db=db,
+        user_id=current_user.id,
+    )
 
 
 @router.get(
@@ -86,7 +133,11 @@ def get_scan(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    scan = get_scan_by_id(db, scan_id)
+    scan = get_scan_by_id(
+        db=db,
+        scan_id=scan_id,
+        user_id=current_user.id,
+    )
 
     if not scan:
         raise HTTPException(
@@ -106,7 +157,11 @@ def get_virustotal_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    scan = get_scan_by_id(db, scan_id)
+    scan = get_scan_by_id(
+        db=db,
+        scan_id=scan_id,
+        user_id=current_user.id,
+    )
 
     if not scan:
         raise HTTPException(
@@ -114,7 +169,7 @@ def get_virustotal_report(
             detail="Scan not found",
         )
 
-    # Return cached data
+    # Return cached data.
     if scan.vt_found:
         return VirusTotalResponse(
             sha256=scan.sha256,
@@ -128,10 +183,10 @@ def get_virustotal_report(
             cached=True,
         )
 
-    # Query VirusTotal
+    # Query VirusTotal.
     vt_result = lookup_file(scan.sha256)
 
-    # Save results
+    # Save results.
     update_scan_virustotal(
         db=db,
         scan=scan,

@@ -8,9 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.yara_engine import scan_file
 from app.models.scan import Scan
-from uuid import UUID
 
-from datetime import datetime
 
 UPLOAD_DIR = Path("app/uploads")
 
@@ -20,11 +18,9 @@ def save_file(file: UploadFile) -> tuple[str, str]:
     Save uploaded file and return:
     (file_path, sha256_hash)
     """
-
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
     file_path = UPLOAD_DIR / file.filename
-
     content = file.file.read()
 
     with open(file_path, "wb") as buffer:
@@ -42,9 +38,15 @@ def analyze_file(file_path: str) -> tuple[bool, str | None]:
 def get_scan_by_sha256(
     db: Session,
     sha256: str,
+    user_id: UUID,
 ) -> Scan | None:
-
-    statement = select(Scan).where(Scan.sha256 == sha256)
+    """
+    Find a scan by SHA256 belonging to the specified user.
+    """
+    statement = select(Scan).where(
+        Scan.sha256 == sha256,
+        Scan.user_id == user_id,
+    )
 
     return db.execute(statement).scalar_one_or_none()
 
@@ -52,19 +54,29 @@ def get_scan_by_sha256(
 def get_scan_by_id(
     db: Session,
     scan_id: UUID,
+    user_id: UUID,
 ) -> Scan | None:
-
-    statement = select(Scan).where(Scan.id == scan_id)
+    """
+    Find a scan by ID belonging to the specified user.
+    """
+    statement = select(Scan).where(
+        Scan.id == scan_id,
+        Scan.user_id == user_id,
+    )
 
     return db.execute(statement).scalar_one_or_none()
 
 
 def get_all_scans(
     db: Session,
+    user_id: UUID,
 ) -> list[Scan]:
-
+    """
+    Return scans belonging only to the specified user.
+    """
     statement = (
         select(Scan)
+        .where(Scan.user_id == user_id)
         .order_by(Scan.uploaded_at.desc())
     )
 
@@ -73,14 +85,18 @@ def get_all_scans(
 
 def create_scan(
     db: Session,
+    user_id: UUID,
     filename: str,
     sha256: str,
     is_malicious: bool,
     matched_rule: str | None,
     scan_status: str,
 ) -> Scan:
-
+    """
+    Create a scan owned by the specified user.
+    """
     scan = Scan(
+        user_id=user_id,
         filename=filename,
         sha256=sha256,
         is_malicious=is_malicious,
@@ -95,26 +111,51 @@ def create_scan(
     return scan
 
 
-def get_scan_stats(db: Session):
+def get_scan_stats(
+    db: Session,
+    user_id: UUID,
+) -> dict:
+    """
+    Return scan statistics for the specified user only.
+    """
+    user_filter = Scan.user_id == user_id
 
-    total_scans = db.scalar(
-        select(func.count()).select_from(Scan)
-    ) or 0
+    total_scans = (
+        db.scalar(
+            select(func.count())
+            .select_from(Scan)
+            .where(user_filter)
+        )
+        or 0
+    )
 
-    malicious = db.scalar(
-        select(func.count())
-        .select_from(Scan)
-        .where(Scan.is_malicious.is_(True))
-    ) or 0
+    malicious = (
+        db.scalar(
+            select(func.count())
+            .select_from(Scan)
+            .where(
+                user_filter,
+                Scan.is_malicious.is_(True),
+            )
+        )
+        or 0
+    )
 
-    clean = db.scalar(
-        select(func.count())
-        .select_from(Scan)
-        .where(Scan.is_malicious.is_(False))
-    ) or 0
+    clean = (
+        db.scalar(
+            select(func.count())
+            .select_from(Scan)
+            .where(
+                user_filter,
+                Scan.is_malicious.is_(False),
+            )
+        )
+        or 0
+    )
 
     last_scan = db.scalar(
         select(Scan.uploaded_at)
+        .where(user_filter)
         .order_by(Scan.uploaded_at.desc())
         .limit(1)
     )
@@ -126,12 +167,6 @@ def get_scan_stats(db: Session):
         "last_scan": last_scan,
     }
 
-def get_scan_by_id(
-    db: Session,
-    scan_id: UUID,
-) -> Scan | None:
-    statement = select(Scan).where(Scan.id == scan_id)
-    return db.execute(statement).scalar_one_or_none()
 
 def update_scan_virustotal(
     db: Session,
@@ -140,8 +175,8 @@ def update_scan_virustotal(
 ) -> Scan:
     """
     Save VirusTotal analysis results to the database.
+    Ownership is already verified before this function is called.
     """
-
     scan.vt_found = True
     scan.vt_malicious = vt_data.get("malicious", 0)
     scan.vt_suspicious = vt_data.get("suspicious", 0)
