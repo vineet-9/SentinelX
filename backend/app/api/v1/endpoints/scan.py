@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -10,6 +10,7 @@ from app.models.scan import Scan
 from app.models.user import User
 from app.schemas.scan import ScanResponse, ScanStatsResponse
 from app.schemas.virustotal import VirusTotalResponse
+from app.services.audit_service import create_audit_log
 from app.services.scan_service import (
     analyze_file,
     create_scan,
@@ -34,6 +35,7 @@ router = APIRouter(
     response_model=ScanResponse,
 )
 def upload_file(
+    request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -48,6 +50,13 @@ def upload_file(
     )
 
     if existing_scan:
+        create_audit_log(
+            db=db,
+            event="Scan Duplicate Detected",
+            user_email=current_user.email,
+            ip_address=request.client.host,
+        )
+
         return existing_scan
 
     # The database currently enforces globally unique SHA256 values.
@@ -57,6 +66,13 @@ def upload_file(
     )
 
     if global_existing_scan:
+        create_audit_log(
+            db=db,
+            event="Scan Duplicate Detected",
+            user_email=current_user.email,
+            ip_address=request.client.host,
+        )
+
         raise HTTPException(
             status_code=409,
             detail="A scan for this file already exists.",
@@ -86,12 +102,33 @@ def upload_file(
         )
 
         if existing_scan:
+            create_audit_log(
+                db=db,
+                event="Scan Duplicate Detected",
+                user_email=current_user.email,
+                ip_address=request.client.host,
+            )
+
             return existing_scan
+
+        create_audit_log(
+            db=db,
+            event="Scan Duplicate Detected",
+            user_email=current_user.email,
+            ip_address=request.client.host,
+        )
 
         raise HTTPException(
             status_code=409,
             detail="A scan for this file already exists.",
         )
+
+    create_audit_log(
+        db=db,
+        event="Scan Uploaded",
+        user_email=current_user.email,
+        ip_address=request.client.host,
+    )
 
     return scan
 
@@ -153,6 +190,7 @@ def get_scan(
     response_model=VirusTotalResponse,
 )
 def get_virustotal_report(
+    request: Request,
     scan_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -171,6 +209,13 @@ def get_virustotal_report(
 
     # Return cached data.
     if scan.vt_found:
+        create_audit_log(
+            db=db,
+            event="VirusTotal Cache Used",
+            user_email=current_user.email,
+            ip_address=request.client.host,
+        )
+
         return VirusTotalResponse(
             sha256=scan.sha256,
             found=scan.vt_found,
@@ -191,6 +236,13 @@ def get_virustotal_report(
         db=db,
         scan=scan,
         vt_data=vt_result,
+    )
+
+    create_audit_log(
+        db=db,
+        event="VirusTotal Lookup",
+        user_email=current_user.email,
+        ip_address=request.client.host,
     )
 
     return VirusTotalResponse(
