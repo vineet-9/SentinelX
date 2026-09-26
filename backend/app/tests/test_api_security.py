@@ -173,6 +173,7 @@ def test_invalid_signature_token_is_rejected():
 
     assert decode_access_token(token) is None
 
+
 def test_login_with_nonexistent_email_returns_generic_error(client, db):
     response = client.post(
         "/auth/login",
@@ -268,6 +269,7 @@ def test_inactive_user_login_creates_failed_login_audit_event(
         db.delete(user)
         db.commit()
 
+
 def test_inactive_user_cannot_access_protected_endpoint(client, db):
     user = create_test_user(db)
 
@@ -288,6 +290,7 @@ def test_inactive_user_cannot_access_protected_endpoint(client, db):
     finally:
         db.delete(user)
         db.commit()
+
 
 def test_inactive_user_cannot_access_users_me(client, db):
     user = create_test_user(db)
@@ -735,4 +738,42 @@ def test_path_traversal_filename_is_sanitized(client, db):
         db.delete(user)
         db.commit()
 
-    
+
+def test_security_headers_are_present(client):
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["Referrer-Policy"] == "no-referrer"
+    assert response.headers["Permissions-Policy"] == (
+        "camera=(), microphone=(), geolocation=()"
+    )
+
+
+def test_cors_allows_frontend_origin(client):
+    response = client.options(
+        "/",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["Access-Control-Allow-Origin"] == (
+        "http://localhost:5173"
+    )
+    assert "Access-Control-Allow-Credentials" not in response.headers
+
+
+def test_cors_rejects_unknown_origin(client):
+    response = client.options(
+        "/",
+        headers={
+            "Origin": "http://malicious.example",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert "Access-Control-Allow-Origin" not in response.headers
