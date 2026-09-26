@@ -60,8 +60,8 @@ export default function History() {
 
       const data = await getScanHistory();
       setScans(data);
-    } catch (err) {
-      console.error(err);
+    } catch (err: unknown) {
+      console.error("Failed to load scan history:", err);
       setError("Unable to load scan history.");
     } finally {
       setLoading(false);
@@ -69,47 +69,65 @@ export default function History() {
   }, []);
 
   useEffect(() => {
-  let cancelled = false;
+    let cancelled = false;
 
-  async function load() {
-    try {
-      setLoading(true);
-      setError(null);
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
 
-      const data = await getScanHistory();
+        const data = await getScanHistory();
 
-      if (cancelled) {
-        return;
-      }
+        if (cancelled) {
+          return;
+        }
 
-      setScans(data);
-    } catch (err) {
-      if (cancelled) {
-        return;
-      }
+        setScans(data);
+      } catch (err: unknown) {
+        if (cancelled) {
+          return;
+        }
 
-      console.error(err);
-      setError("Unable to load scan history.");
-    } finally {
-      if (!cancelled) {
-        setLoading(false);
+        console.error("Failed to load scan history:", err);
+        setError("Unable to load scan history.");
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
-  }
 
-  load();
+    load();
 
-  return () => {
-    cancelled = true;
+    return () => {
+      cancelled = true;
     };
   }, []);
+
+  function openScan(scanId: string) {
+    navigate(`/scan/${scanId}`);
+  }
+
+  function handleRowKeyDown(
+    event: React.KeyboardEvent<HTMLTableRowElement>,
+    scanId: string,
+  ) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openScan(scanId);
+    }
+  }
 
   if (loading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <p className="text-zinc-400">
-          Loading scan history...
-        </p>
+        <div className="text-center">
+          <RefreshCw className="mx-auto h-6 w-6 animate-spin text-blue-400" />
+
+          <p className="mt-3 text-zinc-400">
+            Loading scan history...
+          </p>
+        </div>
       </div>
     );
   }
@@ -127,7 +145,10 @@ export default function History() {
           </p>
         </div>
 
-        <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-6">
+        <div
+          role="alert"
+          className="rounded-xl border border-red-500/20 bg-red-500/10 p-6"
+        >
           <h2 className="font-semibold text-red-400">
             History unavailable
           </h2>
@@ -151,7 +172,6 @@ export default function History() {
 
   return (
     <div className="space-y-8">
-      {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-bold text-white">
@@ -173,7 +193,6 @@ export default function History() {
         </button>
       </div>
 
-      {/* History Table */}
       <Card>
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-white">
@@ -211,18 +230,21 @@ export default function History() {
               {scans.map((scan) => (
                 <tr
                   key={scan.id}
-                  onClick={() =>
-                    navigate(`/scan/${scan.id}`)
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open scan details for ${scan.filename}`}
+                  onClick={() => openScan(scan.id)}
+                  onKeyDown={(event) =>
+                    handleRowKeyDown(event, scan.id)
                   }
-                  className="cursor-pointer border-b border-zinc-800/70 transition-colors hover:bg-zinc-800/40 last:border-none"
+                  className="cursor-pointer border-b border-zinc-800/70 transition-colors hover:bg-zinc-800/40 focus:bg-zinc-800/40 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 last:border-none"
                 >
-                  {/* File */}
                   <td className="py-4">
                     <div className="flex items-center gap-3">
                       {getFileIcon(scan.filename)}
 
-                      <div>
-                        <p className="font-medium text-white">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-white">
                           {scan.filename}
                         </p>
 
@@ -236,7 +258,6 @@ export default function History() {
                     </div>
                   </td>
 
-                  {/* Status */}
                   <td className="py-4">
                     <Badge
                       text={
@@ -252,12 +273,10 @@ export default function History() {
                     />
                   </td>
 
-                  {/* YARA Rule */}
                   <td className="py-4 text-zinc-400">
                     {scan.matched_rule ?? "—"}
                   </td>
 
-                  {/* SHA256 */}
                   <td className="py-4">
                     <code className="text-xs text-zinc-500">
                       {scan.sha256.slice(0, 16)}...
@@ -266,7 +285,6 @@ export default function History() {
                 </tr>
               ))}
 
-              {/* Empty State */}
               {scans.length === 0 && (
                 <tr>
                   <td
@@ -280,7 +298,8 @@ export default function History() {
                     </p>
 
                     <p className="mt-1 text-sm text-zinc-600">
-                      Uploaded files will appear here after scanning.
+                      Uploaded files will appear here after
+                      scanning.
                     </p>
                   </td>
                 </tr>
