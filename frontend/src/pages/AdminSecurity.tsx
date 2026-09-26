@@ -64,21 +64,84 @@ export default function AdminSecurity() {
       const data = await getAuditLogs(undefined, 100);
 
       setLogs(data);
-    } catch (err: any) {
-      if (err.response?.status === 403) {
-        setError("You do not have permission to view the security audit log.");
-      } else {
-        setError("Unable to load security audit events.");
+    } catch (err: unknown) {
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "response" in err
+      ) {
+        const response = err.response;
+
+        if (
+          typeof response === "object" &&
+          response !== null &&
+          "status" in response &&
+          response.status === 403
+        ) {
+          setError(
+            "You do not have permission to view the security audit log."
+          );
+          return;
+        }
       }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+
+      setError("Unable to load security audit events.");
     }
   }, []);
 
   useEffect(() => {
-    loadLogs();
-  }, [loadLogs]);
+  let cancelled = false;
+
+  async function load() {
+    try {
+      setError(null);
+
+      const data = await getAuditLogs(undefined, 100);
+
+      if (cancelled) {
+        return;
+      }
+
+      setLogs(data);
+    } catch (err: unknown) {
+      if (cancelled) {
+        return;
+      }
+
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "response" in err
+      ) {
+        const response = err.response;
+
+        if (
+          typeof response === "object" &&
+          response !== null &&
+          "status" in response &&
+          response.status === 403
+        ) {
+          setError(
+            "You do not have permission to view the security audit log."
+          );
+          return;
+        }
+      }
+
+      setError("Unable to load security audit events.");
+    } finally {
+      if (!cancelled) {
+        setLoading(false);
+      }
+    }
+  }
+
+  load();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
   function handleRefresh() {
     setRefreshing(true);

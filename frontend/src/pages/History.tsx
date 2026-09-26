@@ -69,8 +69,40 @@ export default function History() {
   }, []);
 
   useEffect(() => {
-    loadHistory();
-  }, [loadHistory]);
+  let cancelled = false;
+
+  async function load() {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const data = await getScanHistory();
+
+      if (cancelled) {
+        return;
+      }
+
+      setScans(data);
+    } catch (err) {
+      if (cancelled) {
+        return;
+      }
+
+      console.error(err);
+      setError("Unable to load scan history.");
+    } finally {
+      if (!cancelled) {
+        setLoading(false);
+      }
+    }
+  }
+
+  load();
+
+  return () => {
+    cancelled = true;
+    };
+  }, []);
 
   if (loading) {
     return (
