@@ -251,6 +251,27 @@ def test_inactive_user_cannot_access_protected_endpoint(client, db):
         db.delete(user)
         db.commit()
 
+def test_inactive_user_cannot_access_users_me(client, db):
+    user = create_test_user(db)
+
+    try:
+        token_headers = auth_headers(user)
+
+        user.is_active = False
+        db.commit()
+
+        response = client.get(
+            "/users/me",
+            headers=token_headers,
+        )
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == "User account is inactive"
+
+    finally:
+        db.delete(user)
+        db.commit()
+
 
 def test_token_without_subject_is_rejected(client):
     with patch(
