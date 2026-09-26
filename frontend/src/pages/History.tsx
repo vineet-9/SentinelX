@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import type { KeyboardEvent } from "react";
+
 import {
   FileArchive,
   FileCode2,
@@ -24,24 +26,36 @@ function getFileIcon(filename: string) {
   switch (extension) {
     case "exe":
       return (
-        <FileCode2 className="h-5 w-5 text-red-400" />
+        <FileCode2
+          className="h-5 w-5 text-red-400"
+          aria-hidden="true"
+        />
       );
 
     case "jpg":
     case "jpeg":
     case "png":
       return (
-        <FileImage className="h-5 w-5 text-blue-400" />
+        <FileImage
+          className="h-5 w-5 text-blue-400"
+          aria-hidden="true"
+        />
       );
 
     case "zip":
       return (
-        <FileArchive className="h-5 w-5 text-yellow-400" />
+        <FileArchive
+          className="h-5 w-5 text-yellow-400"
+          aria-hidden="true"
+        />
       );
 
     default:
       return (
-        <FileText className="h-5 w-5 text-zinc-400" />
+        <FileText
+          className="h-5 w-5 text-zinc-400"
+          aria-hidden="true"
+        />
       );
   }
 }
@@ -51,45 +65,42 @@ export default function History() {
 
   const [scans, setScans] = useState<Scan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadHistory = useCallback(async () => {
     try {
-      setLoading(true);
       setError(null);
 
       const data = await getScanHistory();
+
       setScans(data);
     } catch (err: unknown) {
       console.error("Failed to load scan history:", err);
       setError("Unable to load scan history.");
-    } finally {
-      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
+    async function loadInitialHistory() {
       try {
-        setLoading(true);
         setError(null);
 
         const data = await getScanHistory();
 
-        if (cancelled) {
-          return;
+        if (!cancelled) {
+          setScans(data);
         }
-
-        setScans(data);
       } catch (err: unknown) {
-        if (cancelled) {
-          return;
+        if (!cancelled) {
+          console.error(
+            "Failed to load scan history:",
+            err,
+          );
+          setError("Unable to load scan history.");
         }
-
-        console.error("Failed to load scan history:", err);
-        setError("Unable to load scan history.");
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -97,19 +108,28 @@ export default function History() {
       }
     }
 
-    load();
+    loadInitialHistory();
 
     return () => {
       cancelled = true;
     };
   }, []);
 
+  async function handleRefresh() {
+    try {
+      setRefreshing(true);
+      await loadHistory();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   function openScan(scanId: string) {
     navigate(`/scan/${scanId}`);
   }
 
   function handleRowKeyDown(
-    event: React.KeyboardEvent<HTMLTableRowElement>,
+    event: KeyboardEvent<HTMLTableRowElement>,
     scanId: string,
   ) {
     if (event.key === "Enter" || event.key === " ") {
@@ -122,7 +142,10 @@ export default function History() {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="mx-auto h-6 w-6 animate-spin text-blue-400" />
+          <RefreshCw
+            className="mx-auto h-6 w-6 animate-spin text-blue-400"
+            aria-hidden="true"
+          />
 
           <p className="mt-3 text-zinc-400">
             Loading scan history...
@@ -159,11 +182,17 @@ export default function History() {
 
           <button
             type="button"
-            onClick={loadHistory}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <RefreshCw className="h-4 w-4" />
-            Retry
+            <RefreshCw
+              className={`h-4 w-4 ${
+                refreshing ? "animate-spin" : ""
+              }`}
+              aria-hidden="true"
+            />
+            {refreshing ? "Retrying..." : "Retry"}
           </button>
         </div>
       </div>
@@ -172,7 +201,7 @@ export default function History() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-4xl font-bold text-white">
             Scan History
@@ -185,11 +214,17 @@ export default function History() {
 
         <button
           type="button"
-          onClick={loadHistory}
-          className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-800 hover:text-white"
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <RefreshCw className="h-4 w-4" />
-          Refresh
+          <RefreshCw
+            className={`h-4 w-4 ${
+              refreshing ? "animate-spin" : ""
+            }`}
+            aria-hidden="true"
+          />
+          {refreshing ? "Refreshing..." : "Refresh"}
         </button>
       </div>
 
@@ -291,7 +326,10 @@ export default function History() {
                     colSpan={4}
                     className="py-16 text-center"
                   >
-                    <FileText className="mx-auto h-10 w-10 text-zinc-700" />
+                    <FileText
+                      className="mx-auto h-10 w-10 text-zinc-700"
+                      aria-hidden="true"
+                    />
 
                     <p className="mt-4 text-zinc-400">
                       No scans found.
