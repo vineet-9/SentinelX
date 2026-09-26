@@ -92,6 +92,44 @@ def test_scan_history_requires_authentication(client):
     assert response.status_code == 401
     assert response.json()["detail"] == "Not authenticated"
 
+def test_registration_rejects_short_username(client):
+    response = client.post(
+        "/auth/register",
+        json={
+            "username": "ab",
+            "email": "shortuser@example.com",
+            "password": "ValidPassword123!",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_registration_rejects_short_password(client):
+    response = client.post(
+        "/auth/register",
+        json={
+            "username": "validuser",
+            "email": "shortpassword@example.com",
+            "password": "short",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_registration_rejects_oversized_password(client):
+    response = client.post(
+        "/auth/register",
+        json={
+            "username": "validuser",
+            "email": "longpassword@example.com",
+            "password": "a" * 129,
+        },
+    )
+
+    assert response.status_code == 422
+
 def test_expired_access_token_is_rejected():
     from datetime import UTC, datetime, timedelta
 
