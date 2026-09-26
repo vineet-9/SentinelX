@@ -9,6 +9,7 @@ import History from "./pages/History";
 import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import ScanDetails from "./pages/ScanDetails";
+import AdminSecurity from "./pages/AdminSecurity";
 
 export default function App() {
   return (
@@ -27,9 +28,15 @@ export default function App() {
           <Route path="/upload" element={<Upload />} />
           <Route path="/history" element={<History />} />
           <Route path="/profile" element={<Profile />} />
+
           <Route
             path="/scan/:scanId"
             element={<ScanDetails />}
+          />
+
+          <Route
+            path="/admin/security"
+            element={<AdminSecurity />}
           />
         </Route>
       </Routes>

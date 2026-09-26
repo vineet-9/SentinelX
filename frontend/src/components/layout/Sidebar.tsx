@@ -1,14 +1,20 @@
+import { useEffect, useState } from "react";
 import {
   History,
   LayoutDashboard,
   LogOut,
   Shield,
+  ShieldAlert,
   Upload,
   User,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
-import { removeToken } from "@/services/authService";
+import {
+  getCurrentUser,
+  removeToken,
+  type User as CurrentUser,
+} from "@/services/authService";
 
 const menuItems = [
   {
@@ -36,10 +42,37 @@ const menuItems = [
 export default function Sidebar() {
   const navigate = useNavigate();
 
+  const [currentUser, setCurrentUser] =
+    useState<CurrentUser | null>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const user = await getCurrentUser();
+        setCurrentUser(user);
+      } catch (error) {
+        console.error("Unable to load current user:", error);
+      }
+    }
+
+    loadUser();
+  }, []);
+
   function handleLogout() {
     removeToken();
     navigate("/login", { replace: true });
   }
+
+  const visibleMenuItems = currentUser?.is_superuser
+    ? [
+        ...menuItems,
+        {
+          name: "Security",
+          path: "/admin/security",
+          icon: ShieldAlert,
+        },
+      ]
+    : menuItems;
 
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-slate-800 bg-slate-900">
@@ -54,7 +87,7 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-2 px-4 py-6">
-        {menuItems.map((item) => {
+        {visibleMenuItems.map((item) => {
           const Icon = item.icon;
 
           return (
