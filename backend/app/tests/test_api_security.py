@@ -92,6 +92,215 @@ def test_scan_history_requires_authentication(client):
     assert response.status_code == 401
     assert response.json()["detail"] == "Not authenticated"
 
+def test_expired_access_token_is_rejected():
+    from datetime import UTC, datetime, timedelta
+
+    from jose import jwt
+
+    from app.core.config import settings
+    from app.core.security import decode_access_token
+
+    payload = {
+        "sub": "00000000-0000-0000-0000-000000000000",
+        "exp": datetime.now(UTC) - timedelta(minutes=1),
+    }
+
+    token = jwt.encode(
+        payload,
+        settings.secret_key,
+        algorithm=settings.algorithm,
+    )
+
+    assert decode_access_token(token) is None
+
+
+def test_invalid_signature_token_is_rejected():
+    from datetime import UTC, datetime, timedelta
+
+    from jose import jwt
+
+    from app.core.config import settings
+    from app.core.security import decode_access_token
+
+    payload = {
+        "sub": "00000000-0000-0000-0000-000000000000",
+        "exp": datetime.now(UTC) + timedelta(minutes=5),
+    }
+
+    token = jwt.encode(
+        payload,
+        "wrong-secret-key",
+        algorithm=settings.algorithm,
+    )
+
+    assert decode_access_token(token) is None
+
+def test_login_with_nonexistent_email_returns_generic_error(client, db):
+    response = client.post(
+        "/auth/login",
+        data={
+            "username": "does-not-exist@example.com",
+            "password": "WrongPassword123!",
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid email or password"
+
+
+def test_login_with_wrong_password_returns_generic_error(client, db):
+    user = create_test_user(db)
+
+    try:
+        response = client.post(
+            "/auth/login",
+            data={
+                "username": user.email,
+                "password": "WrongPassword123!",
+            },
+        )
+
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid email or password"
+
+    finally:
+        db.delete(user)
+        db.commit()
+
+
+def test_inactive_user_cannot_login(client, db):
+    user = create_test_user(db)
+    user.is_active = False
+    db.commit()
+
+    try:
+        response = client.post(
+            "/auth/login",
+            data={
+                "username": user.email,
+                "password": "TestPassword123!",
+            },
+        )
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == "User account is inactive"
+
+    finally:
+        db.delete(user)
+        db.commit()
+
+
+def test_inactive_user_login_creates_failed_login_audit_event(
+    client,
+    db,
+):
+    user = create_test_user(db)
+    user.is_active = False
+    db.commit()
+
+    try:
+        response = client.post(
+            "/auth/login",
+            data={
+                "username": user.email,
+                "password": "TestPassword123!",
+            },
+        )
+
+        assert response.status_code == 403
+
+        audit_log = (
+            db.query(AuditLog)
+            .filter(
+                AuditLog.event == "Failed Login",
+                AuditLog.user_email == user.email,
+            )
+            .order_by(AuditLog.created_at.desc())
+            .first()
+        )
+
+        assert audit_log is not None
+        assert audit_log.user_email == user.email
+        assert audit_log.ip_address == "testclient"
+
+        db.delete(audit_log)
+        db.commit()
+
+    finally:
+        db.delete(user)
+        db.commit()
+
+def test_inactive_user_cannot_access_protected_endpoint(client, db):
+    user = create_test_user(db)
+
+    try:
+        token_headers = auth_headers(user)
+
+        user.is_active = False
+        db.commit()
+
+        response = client.get(
+            "/scan/history",
+            headers=token_headers,
+        )
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == "User account is inactive"
+
+    finally:
+        db.delete(user)
+        db.commit()
+
+
+def test_token_without_subject_is_rejected(client):
+    with patch(
+        "app.database.dependencies.decode_access_token",
+        return_value={},
+    ):
+        response = client.get(
+            "/scan/history",
+            headers={"Authorization": "Bearer invalid-token"},
+        )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == (
+        "Invalid authentication credentials"
+    )
+
+
+def test_token_with_malformed_uuid_is_rejected(client):
+    with patch(
+        "app.database.dependencies.decode_access_token",
+        return_value={"sub": "not-a-valid-uuid"},
+    ):
+        response = client.get(
+            "/scan/history",
+            headers={"Authorization": "Bearer invalid-token"},
+        )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == (
+        "Invalid authentication credentials"
+    )
+
+
+def test_token_for_nonexistent_user_is_rejected(client, db):
+    nonexistent_user_id = str(uuid.uuid4())
+
+    with patch(
+        "app.database.dependencies.decode_access_token",
+        return_value={"sub": nonexistent_user_id},
+    ):
+        response = client.get(
+            "/scan/history",
+            headers={"Authorization": "Bearer invalid-token"},
+        )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == (
+        "Invalid authentication credentials"
+    )
+
 
 def test_user_can_access_own_scan(client, db):
     user = create_test_user(db)
@@ -466,3 +675,5 @@ def test_path_traversal_filename_is_sanitized(client, db):
 
         db.delete(user)
         db.commit()
+
+    

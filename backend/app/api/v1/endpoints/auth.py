@@ -83,10 +83,10 @@ def login(
             user_email=form_data.username,
             ip_address=request.client.host,
         )
-
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     if not verify_password(
@@ -99,10 +99,22 @@ def login(
             user_email=user.email,
             ip_address=request.client.host,
         )
-
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not user.is_active:
+        create_audit_log(
+            db=db,
+            event="Failed Login",
+            user_email=user.email,
+            ip_address=request.client.host,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is inactive",
         )
 
     access_token = create_access_token(str(user.id))
