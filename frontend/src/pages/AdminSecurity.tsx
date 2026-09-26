@@ -7,6 +7,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import axios from "axios";
 
 import { getAuditLogs, type AuditLog } from "@/services/auditService";
 
@@ -51,6 +52,17 @@ function getEventClass(event: string) {
   }
 }
 
+function getAuditError(error: unknown) {
+  if (
+    axios.isAxiosError(error) &&
+    error.response?.status === 403
+  ) {
+    return "You do not have permission to view the security audit log.";
+  }
+
+  return "Unable to load security audit events.";
+}
+
 export default function AdminSecurity() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,98 +77,68 @@ export default function AdminSecurity() {
 
       setLogs(data);
     } catch (err: unknown) {
-      if (
-        typeof err === "object" &&
-        err !== null &&
-        "response" in err
-      ) {
-        const response = err.response;
-
-        if (
-          typeof response === "object" &&
-          response !== null &&
-          "status" in response &&
-          response.status === 403
-        ) {
-          setError(
-            "You do not have permission to view the security audit log."
-          );
-          return;
-        }
-      }
-
-      setError("Unable to load security audit events.");
+      console.error("Failed to load security audit events:", err);
+      setError(getAuditError(err));
     }
   }, []);
 
   useEffect(() => {
-  let cancelled = false;
+    let cancelled = false;
 
-  async function load() {
-    try {
-      setError(null);
+    async function loadInitialLogs() {
+      try {
+        setError(null);
 
-      const data = await getAuditLogs(undefined, 100);
+        const data = await getAuditLogs(undefined, 100);
 
-      if (cancelled) {
-        return;
-      }
-
-      setLogs(data);
-    } catch (err: unknown) {
-      if (cancelled) {
-        return;
-      }
-
-      if (
-        typeof err === "object" &&
-        err !== null &&
-        "response" in err
-      ) {
-        const response = err.response;
-
-        if (
-          typeof response === "object" &&
-          response !== null &&
-          "status" in response &&
-          response.status === 403
-        ) {
-          setError(
-            "You do not have permission to view the security audit log."
+        if (!cancelled) {
+          setLogs(data);
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          console.error(
+            "Failed to load security audit events:",
+            err,
           );
-          return;
+          setError(getAuditError(err));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
         }
       }
+    }
 
-      setError("Unable to load security audit events.");
+    loadInitialLogs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleRefresh() {
+    try {
+      setRefreshing(true);
+      await loadLogs();
     } finally {
-      if (!cancelled) {
-        setLoading(false);
-      }
+      setRefreshing(false);
     }
   }
 
-  load();
-
-  return () => {
-    cancelled = true;
-  };
-}, []);
-
-  function handleRefresh() {
-    setRefreshing(true);
-    loadLogs();
-  }
-
   const failedLogins = useMemo(
-    () => logs.filter((log) => log.event === "Failed Login").length,
-    [logs]
+    () =>
+      logs.filter(
+        (log) => log.event === "Failed Login",
+      ).length,
+    [logs],
   );
 
   const unauthorizedAccess = useMemo(
     () =>
-      logs.filter((log) => log.event === "Unauthorized Admin Access").length,
-    [logs]
+      logs.filter(
+        (log) => log.event === "Unauthorized Admin Access",
+      ).length,
+    [logs],
   );
 
   const scanEvents = useMemo(
@@ -164,16 +146,19 @@ export default function AdminSecurity() {
       logs.filter(
         (log) =>
           log.event === "Scan Uploaded" ||
-          log.event === "Scan Duplicate Detected"
+          log.event === "Scan Duplicate Detected",
       ).length,
-    [logs]
+    [logs],
   );
 
   if (loading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="flex items-center gap-3 text-slate-400">
-          <RefreshCw className="h-5 w-5 animate-spin" />
+          <RefreshCw
+            className="h-5 w-5 animate-spin"
+            aria-hidden="true"
+          />
           Loading security events...
         </div>
       </div>
@@ -182,9 +167,15 @@ export default function AdminSecurity() {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-6">
+      <div
+        role="alert"
+        className="rounded-xl border border-red-500/20 bg-red-500/10 p-6"
+      >
         <div className="flex items-center gap-3">
-          <ShieldAlert className="h-6 w-6 text-red-400" />
+          <ShieldAlert
+            className="h-6 w-6 text-red-400"
+            aria-hidden="true"
+          />
 
           <div>
             <h2 className="font-semibold text-white">
@@ -202,11 +193,13 @@ export default function AdminSecurity() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <div className="flex items-center gap-3">
-            <ShieldCheck className="h-7 w-7 text-blue-500" />
+            <ShieldCheck
+              className="h-7 w-7 text-blue-500"
+              aria-hidden="true"
+            />
 
             <h1 className="text-3xl font-bold text-white">
               Security Audit
@@ -225,13 +218,15 @@ export default function AdminSecurity() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <RefreshCw
-            className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+            className={`h-4 w-4 ${
+              refreshing ? "animate-spin" : ""
+            }`}
+            aria-hidden="true"
           />
           Refresh
         </button>
       </div>
 
-      {/* Summary cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
           <div className="flex items-center justify-between">
@@ -239,7 +234,10 @@ export default function AdminSecurity() {
               Total Events
             </p>
 
-            <Clock className="h-5 w-5 text-slate-500" />
+            <Clock
+              className="h-5 w-5 text-slate-500"
+              aria-hidden="true"
+            />
           </div>
 
           <p className="mt-3 text-3xl font-bold text-white">
@@ -253,7 +251,10 @@ export default function AdminSecurity() {
               Failed Logins
             </p>
 
-            <AlertTriangle className="h-5 w-5 text-red-400" />
+            <AlertTriangle
+              className="h-5 w-5 text-red-400"
+              aria-hidden="true"
+            />
           </div>
 
           <p className="mt-3 text-3xl font-bold text-white">
@@ -267,7 +268,10 @@ export default function AdminSecurity() {
               Unauthorized Access
             </p>
 
-            <ShieldAlert className="h-5 w-5 text-orange-400" />
+            <ShieldAlert
+              className="h-5 w-5 text-orange-400"
+              aria-hidden="true"
+            />
           </div>
 
           <p className="mt-3 text-3xl font-bold text-white">
@@ -281,7 +285,10 @@ export default function AdminSecurity() {
               Scan Events
             </p>
 
-            <ShieldCheck className="h-5 w-5 text-blue-400" />
+            <ShieldCheck
+              className="h-5 w-5 text-blue-400"
+              aria-hidden="true"
+            />
           </div>
 
           <p className="mt-3 text-3xl font-bold text-white">
@@ -290,7 +297,6 @@ export default function AdminSecurity() {
         </div>
       </div>
 
-      {/* Audit table */}
       <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900">
         <div className="border-b border-slate-800 px-6 py-5">
           <h2 className="text-lg font-semibold text-white">
@@ -342,10 +348,13 @@ export default function AdminSecurity() {
                         <div className="flex items-center gap-3">
                           <div
                             className={`flex h-9 w-9 items-center justify-center rounded-lg ${getEventClass(
-                              log.event
+                              log.event,
                             )}`}
                           >
-                            <Icon className="h-4 w-4" />
+                            <Icon
+                              className="h-4 w-4"
+                              aria-hidden="true"
+                            />
                           </div>
 
                           <span className="font-medium text-slate-200">
