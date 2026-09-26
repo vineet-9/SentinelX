@@ -1,26 +1,9 @@
-import { useEffect, useState } from "react";
 import { Bell, UserCircle } from "lucide-react";
 
-import {
-  getCurrentUser,
-  type User,
-} from "@/services/authService";
+import { useAuth } from "@/context/useAuth";
 
 export default function Header() {
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    async function loadUser() {
-      try {
-        const currentUser = await getCurrentUser();
-        setUser(currentUser);
-      } catch (error) {
-        console.error("Unable to load current user:", error);
-      }
-    }
-
-    loadUser();
-  }, []);
+  const { user } = useAuth();
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-slate-800 bg-slate-900 px-8">

@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
   History,
   LayoutDashboard,
@@ -10,11 +9,7 @@ import {
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
-import {
-  getCurrentUser,
-  removeToken,
-  type User as CurrentUser,
-} from "@/services/authService";
+import { useAuth } from "@/context/useAuth";
 
 const menuItems = [
   {
@@ -41,29 +36,14 @@ const menuItems = [
 
 export default function Sidebar() {
   const navigate = useNavigate();
-
-  const [currentUser, setCurrentUser] =
-    useState<CurrentUser | null>(null);
-
-  useEffect(() => {
-    async function loadUser() {
-      try {
-        const user = await getCurrentUser();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error("Unable to load current user:", error);
-      }
-    }
-
-    loadUser();
-  }, []);
+  const { user, logout } = useAuth();
 
   function handleLogout() {
-    removeToken();
+    logout();
     navigate("/login", { replace: true });
   }
 
-  const visibleMenuItems = currentUser?.is_superuser
+  const visibleMenuItems = user?.is_superuser
     ? [
         ...menuItems,
         {
@@ -76,7 +56,6 @@ export default function Sidebar() {
 
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-slate-800 bg-slate-900">
-      {/* Logo */}
       <div className="flex items-center gap-3 border-b border-slate-800 p-6">
         <Shield className="h-8 w-8 text-blue-500" />
 
@@ -85,7 +64,6 @@ export default function Sidebar() {
         </h1>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 space-y-2 px-4 py-6">
         {visibleMenuItems.map((item) => {
           const Icon = item.icon;
@@ -109,7 +87,6 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Logout */}
       <div className="border-t border-slate-800 p-4">
         <button
           type="button"

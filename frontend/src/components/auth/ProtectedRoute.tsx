@@ -1,17 +1,29 @@
 import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 
-import { getToken } from "@/services/authService";
+import { useAuth } from "@/context/useAuth";
 
 type Props = {
   children: ReactNode;
 };
 
-export default function ProtectedRoute({ children }: Props) {
+export default function ProtectedRoute({
+  children,
+}: Props) {
   const location = useLocation();
-  const token = getToken();
+  const { user, loading } = useAuth();
 
-  if (!token) {
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-950">
+        <p className="text-zinc-400">
+          Loading SentinelX...
+        </p>
+      </div>
+    );
+  }
+
+  if (!user) {
     return (
       <Navigate
         to="/login"

@@ -4,17 +4,15 @@ import { ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import Card from "@/components/ui/Card";
-import {
-  login,
-  saveToken,
-} from "@/services/authService";
+import { useAuth } from "@/context/useAuth";
+import { login, saveToken } from "@/services/authService";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,13 +24,13 @@ export default function Login() {
       setError(null);
 
       const token = await login(email, password);
-
       saveToken(token.access_token);
+
+      await refreshUser();
 
       navigate("/", { replace: true });
     } catch (err) {
       console.error(err);
-
       setError("Invalid email or password.");
     } finally {
       setLoading(false);
@@ -67,10 +65,7 @@ export default function Login() {
             </p>
           </div>
 
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-5"
-          >
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label
                 htmlFor="email"
@@ -83,9 +78,7 @@ export default function Login() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(event) =>
-                  setEmail(event.target.value)
-                }
+                onChange={(event) => setEmail(event.target.value)}
                 required
                 autoComplete="email"
                 placeholder="you@example.com"
@@ -105,9 +98,7 @@ export default function Login() {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(event) =>
-                  setPassword(event.target.value)
-                }
+                onChange={(event) => setPassword(event.target.value)}
                 required
                 autoComplete="current-password"
                 placeholder="••••••••"
