@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { ShieldCheck } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import Card from "@/components/ui/Card";
 import { useAuth } from "@/context/useAuth";
@@ -120,6 +120,15 @@ export default function Login() {
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
+          <p className="mt-6 text-center text-sm text-zinc-500">
+            Don't have an account?{" "}
+            <Link
+              to="/register"
+              className="font-medium text-blue-400 transition-colors hover:text-blue-300"
+            >
+              Create an account
+            </Link>
+          </p>
         </Card>
       </div>
     </div>

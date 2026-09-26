@@ -12,9 +12,15 @@ export type User = {
   is_superuser: boolean;
 };
 
+export type RegisterData = {
+  username: string;
+  email: string;
+  password: string;
+};
+
 export async function login(
   email: string,
-  password: string
+  password: string,
 ): Promise<AuthToken> {
   const formData = new URLSearchParams();
 
@@ -28,15 +34,21 @@ export async function login(
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
-    }
+    },
   );
 
   return response.data;
 }
 
+export async function register(
+  data: RegisterData,
+): Promise<User> {
+  const response = await api.post<User>("/auth/register", data);
+  return response.data;
+}
+
 export async function getCurrentUser(): Promise<User> {
   const response = await api.get<User>("/auth/me");
-
   return response.data;
 }
 

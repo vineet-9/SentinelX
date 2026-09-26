@@ -8,6 +8,7 @@ import Upload from "./pages/Upload";
 import History from "./pages/History";
 import Profile from "./pages/Profile";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
 import ScanDetails from "./pages/ScanDetails";
 import AdminSecurity from "./pages/AdminSecurity";
 
@@ -16,6 +17,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
         <Route
           element={
