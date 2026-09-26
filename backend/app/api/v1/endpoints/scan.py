@@ -23,7 +23,10 @@ from app.services.scan_service import (
     save_file,
     update_scan_virustotal,
 )
-from app.services.virustotal import lookup_file
+from app.services.virustotal import (
+    VirusTotalResponseError,
+    lookup_file,
+)
 
 
 router = APIRouter(
@@ -281,7 +284,13 @@ def get_virustotal_report(
         )
 
     # Query VirusTotal.
-    vt_result = lookup_file(scan.sha256)
+    try:
+        vt_result = lookup_file(scan.sha256)
+    except VirusTotalResponseError:
+        raise HTTPException(
+            status_code=502,
+            detail="VirusTotal returned an invalid response.",
+        ) from None
 
     # Save results.
     update_scan_virustotal(

@@ -249,7 +249,7 @@ def update_scan_virustotal(
     Save VirusTotal analysis results to the database.
     Ownership is already verified before this function is called.
     """
-    scan.vt_found = True
+    scan.vt_found = vt_data.get("found", False)
     scan.vt_malicious = vt_data.get("malicious", 0)
     scan.vt_suspicious = vt_data.get("suspicious", 0)
     scan.vt_harmless = vt_data.get("harmless", 0)
