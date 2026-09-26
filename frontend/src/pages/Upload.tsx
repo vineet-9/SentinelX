@@ -1,13 +1,15 @@
 import { useRef, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, KeyboardEvent } from "react";
+
 import axios from "axios";
 import {
-  Upload as UploadIcon,
-  File as FileIcon,
-  CheckCircle,
   AlertTriangle,
+  CheckCircle,
+  File as FileIcon,
+  Upload as UploadIcon,
   X,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import Card from "@/components/ui/Card";
 import {
@@ -18,13 +20,16 @@ import {
 
 export default function Upload() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<ScanDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+  function handleFileChange(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
     const selectedFile = event.target.files?.[0];
 
     if (!selectedFile) {
@@ -55,6 +60,19 @@ export default function Upload() {
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+  }
+
+  function openFilePicker() {
+    fileInputRef.current?.click();
+  }
+
+  function handleFilePickerKeyDown(
+    event: KeyboardEvent<HTMLDivElement>,
+  ) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openFilePicker();
     }
   }
 
@@ -104,6 +122,12 @@ export default function Upload() {
     }
   }
 
+  function viewScanDetails() {
+    if (result) {
+      navigate(`/scan/${result.id}`);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <div>
@@ -118,8 +142,12 @@ export default function Upload() {
 
       <Card>
         <div
-          className="flex min-h-[280px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-700 px-6 transition-colors hover:border-blue-500/60 hover:bg-zinc-800/30"
-          onClick={() => fileInputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          aria-label="Choose a file to analyze"
+          className="flex min-h-[280px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-700 px-6 transition-colors hover:border-blue-500/60 hover:bg-zinc-800/30 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          onClick={openFilePicker}
+          onKeyDown={handleFilePickerKeyDown}
         >
           <input
             ref={fileInputRef}
@@ -129,7 +157,10 @@ export default function Upload() {
           />
 
           <div className="mb-5 rounded-full bg-blue-500/10 p-5">
-            <UploadIcon className="h-10 w-10 text-blue-400" />
+            <UploadIcon
+              className="h-10 w-10 text-blue-400"
+              aria-hidden="true"
+            />
           </div>
 
           <h2 className="text-lg font-semibold text-white">
@@ -149,7 +180,10 @@ export default function Upload() {
           <div className="mt-6 flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
             <div className="flex min-w-0 items-center gap-4">
               <div className="rounded-lg bg-zinc-800 p-3">
-                <FileIcon className="h-6 w-6 text-blue-400" />
+                <FileIcon
+                  className="h-6 w-6 text-blue-400"
+                  aria-hidden="true"
+                />
               </div>
 
               <div className="min-w-0">
@@ -170,9 +204,9 @@ export default function Upload() {
                 event.stopPropagation();
                 removeFile();
               }}
-              className="rounded-lg p-2 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-white"
+              className="rounded-lg p-2 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
         )}
@@ -195,7 +229,10 @@ export default function Upload() {
           role="alert"
           className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-5"
         >
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
+          <AlertTriangle
+            className="mt-0.5 h-5 w-5 shrink-0 text-red-400"
+            aria-hidden="true"
+          />
 
           <div>
             <h3 className="font-semibold text-red-400">
@@ -213,9 +250,15 @@ export default function Upload() {
         <Card>
           <div className="mb-6 flex items-center gap-3">
             {result.is_malicious ? (
-              <AlertTriangle className="h-6 w-6 text-red-400" />
+              <AlertTriangle
+                className="h-6 w-6 text-red-400"
+                aria-hidden="true"
+              />
             ) : (
-              <CheckCircle className="h-6 w-6 text-green-400" />
+              <CheckCircle
+                className="h-6 w-6 text-green-400"
+                aria-hidden="true"
+              />
             )}
 
             <div>
@@ -254,7 +297,9 @@ export default function Upload() {
           <div className="grid gap-5 md:grid-cols-2">
             {result.filename && (
               <div>
-                <p className="text-sm text-zinc-500">File</p>
+                <p className="text-sm text-zinc-500">
+                  File
+                </p>
 
                 <p className="mt-1 break-words font-medium text-white">
                   {result.filename}
@@ -310,6 +355,14 @@ export default function Upload() {
               </code>
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={viewScanDetails}
+            className="mt-6 w-full rounded-xl border border-blue-500/30 bg-blue-500/10 px-6 py-3 font-semibold text-blue-300 transition-colors hover:bg-blue-500/20 hover:text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            View Scan Details
+          </button>
         </Card>
       )}
     </div>
