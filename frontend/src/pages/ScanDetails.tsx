@@ -1,9 +1,16 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, CheckCircle, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle,
+  AlertTriangle,
+} from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import Card from "@/components/ui/Card";
-import { getScanDetails, type ScanDetails as ScanDetailsType } from "@/services/scanService";
+import {
+  getScanDetails,
+  type ScanDetails as ScanDetailsType,
+} from "@/services/scanService";
 
 export default function ScanDetails() {
   const { scanId } = useParams<{ scanId: string }>();
@@ -14,25 +21,44 @@ export default function ScanDetails() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadScan() {
       if (!scanId) {
-        setError("Invalid scan ID.");
-        setLoading(false);
+        if (!cancelled) {
+          setError("Invalid scan ID.");
+          setLoading(false);
+        }
         return;
       }
 
       try {
+        setLoading(true);
+        setError(null);
+
         const data = await getScanDetails(scanId);
-        setScan(data);
-      } catch (err) {
-        console.error(err);
-        setError("Unable to load scan details.");
+
+        if (!cancelled) {
+          setScan(data);
+        }
+      } catch (err: unknown) {
+        console.error("Failed to load scan details:", err);
+
+        if (!cancelled) {
+          setError("Unable to load scan details.");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     loadScan();
+
+    return () => {
+      cancelled = true;
+    };
   }, [scanId]);
 
   if (loading) {
@@ -57,7 +83,10 @@ export default function ScanDetails() {
           Back
         </button>
 
-        <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-6">
+        <div
+          role="alert"
+          className="rounded-xl border border-red-500/20 bg-red-500/10 p-6"
+        >
           <h2 className="font-semibold text-red-400">
             Scan unavailable
           </h2>
@@ -138,7 +167,7 @@ export default function ScanDetails() {
               Filename
             </p>
 
-            <p className="mt-1 font-medium text-white">
+            <p className="mt-1 break-words font-medium text-white">
               {scan.filename}
             </p>
           </div>
@@ -168,7 +197,7 @@ export default function ScanDetails() {
               Matched YARA Rule
             </p>
 
-            <p className="mt-1 font-medium text-red-400">
+            <p className="mt-1 break-words font-medium text-red-400">
               {scan.matched_rule ?? "No rule matched"}
             </p>
           </div>
@@ -199,6 +228,7 @@ export default function ScanDetails() {
             <p className="text-sm text-zinc-500">
               Malicious
             </p>
+
             <p className="mt-1 text-2xl font-bold text-red-400">
               {scan.vt_malicious}
             </p>
@@ -208,6 +238,7 @@ export default function ScanDetails() {
             <p className="text-sm text-zinc-500">
               Suspicious
             </p>
+
             <p className="mt-1 text-2xl font-bold text-yellow-400">
               {scan.vt_suspicious}
             </p>
@@ -217,6 +248,7 @@ export default function ScanDetails() {
             <p className="text-sm text-zinc-500">
               Harmless
             </p>
+
             <p className="mt-1 text-2xl font-bold text-green-400">
               {scan.vt_harmless}
             </p>
@@ -226,13 +258,14 @@ export default function ScanDetails() {
             <p className="text-sm text-zinc-500">
               Undetected
             </p>
+
             <p className="mt-1 text-2xl font-bold text-zinc-300">
               {scan.vt_undetected}
             </p>
           </div>
         </div>
 
-        <div className="mt-6 grid gap-6 md:grid-cols-2">
+        <div className="mt-6 grid gap-6 md:grid-cols-3">
           <div>
             <p className="text-sm text-zinc-500">
               Hash Found
@@ -250,6 +283,20 @@ export default function ScanDetails() {
 
             <p className="mt-1 font-medium text-white">
               {scan.vt_reputation}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-sm text-zinc-500">
+              Last Analysis
+            </p>
+
+            <p className="mt-1 text-zinc-300">
+              {scan.vt_last_analysis_date
+                ? new Date(
+                    scan.vt_last_analysis_date * 1000,
+                  ).toLocaleString()
+                : "Not available"}
             </p>
           </div>
         </div>
