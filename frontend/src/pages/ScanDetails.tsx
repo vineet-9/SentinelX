@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import {
+  AlertTriangle,
   ArrowLeft,
   CheckCircle,
-  AlertTriangle,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -61,6 +61,10 @@ export default function ScanDetails() {
     };
   }, [scanId]);
 
+  function handleBackToHistory() {
+    navigate("/history");
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
@@ -76,11 +80,11 @@ export default function ScanDetails() {
       <div className="space-y-6">
         <button
           type="button"
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white"
+          onClick={handleBackToHistory}
+          className="inline-flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Back
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to History
         </button>
 
         <div
@@ -105,11 +109,11 @@ export default function ScanDetails() {
     <div className="mx-auto max-w-5xl space-y-8">
       <button
         type="button"
-        onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white"
+        onClick={handleBackToHistory}
+        className="inline-flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
-        <ArrowLeft className="h-4 w-4" />
-        Back
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        Back to History
       </button>
 
       <div>
@@ -132,9 +136,15 @@ export default function ScanDetails() {
             }`}
           >
             {malicious ? (
-              <AlertTriangle className="h-8 w-8 text-red-400" />
+              <AlertTriangle
+                className="h-8 w-8 text-red-400"
+                aria-hidden="true"
+              />
             ) : (
-              <CheckCircle className="h-8 w-8 text-green-400" />
+              <CheckCircle
+                className="h-8 w-8 text-green-400"
+                aria-hidden="true"
+              />
             )}
           </div>
 
