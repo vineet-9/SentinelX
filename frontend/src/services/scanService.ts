@@ -1,5 +1,7 @@
 import api from "@/api/client";
 
+export const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
+
 export type DashboardStats = {
   total_scans: number;
   malicious: number;
@@ -32,6 +34,18 @@ export type ScanDetails = {
   vt_last_analysis_date: number | null;
 };
 
+export async function uploadScan(file: File): Promise<ScanDetails> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await api.post<ScanDetails>(
+    "/scan/upload",
+    formData,
+  );
+
+  return response.data;
+}
+
 export async function getDashboardStats(): Promise<DashboardStats> {
   const response = await api.get<DashboardStats>("/scan/stats");
   return response.data;
@@ -43,10 +57,10 @@ export async function getScanHistory(): Promise<Scan[]> {
 }
 
 export async function getScanDetails(
-  scanId: string
+  scanId: string,
 ): Promise<ScanDetails> {
   const response = await api.get<ScanDetails>(
-    `/scan/${scanId}`
+    `/scan/${scanId}`,
   );
 
   return response.data;
