@@ -1,3 +1,4 @@
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
@@ -18,6 +19,7 @@ from app.services.scan_service import (
     get_scan_by_id,
     get_scan_by_sha256,
     get_scan_stats,
+    sanitize_filename,
     save_file,
     update_scan_virustotal,
 )
@@ -40,61 +42,38 @@ def upload_file(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    file_path, sha256 = save_file(file)
+    """
+    Upload and analyze a file securely.
 
-    # First check whether this user already has this scan.
-    existing_scan = get_scan_by_sha256(
-        db=db,
-        sha256=sha256,
-        user_id=current_user.id,
-    )
+    Security controls:
+    - Requires authentication.
+    - Enforces upload validation in save_file().
+    - Never uses the client filename as a filesystem path.
+    - Stores files using their SHA-256-derived filename.
+    - Prevents duplicate scans.
+    - Cleans up files created by a failed request.
+    """
 
-    if existing_scan:
+    try:
+        file_path, sha256, file_created = save_file(file)
+
+    except ValueError as exc:
         create_audit_log(
             db=db,
-            event="Scan Duplicate Detected",
-            user_email=current_user.email,
-            ip_address=request.client.host,
-        )
-
-        return existing_scan
-
-    # The database currently enforces globally unique SHA256 values.
-    # Check for another user's scan without exposing its details.
-    global_existing_scan = db.scalar(
-        select(Scan).where(Scan.sha256 == sha256)
-    )
-
-    if global_existing_scan:
-        create_audit_log(
-            db=db,
-            event="Scan Duplicate Detected",
+            event="Rejected File Upload",
             user_email=current_user.email,
             ip_address=request.client.host,
         )
 
         raise HTTPException(
-            status_code=409,
-            detail="A scan for this file already exists.",
-        )
+            status_code=400,
+            detail=str(exc),
+        ) from exc
 
-    is_malicious, matched_rule = analyze_file(file_path)
+    path = Path(file_path)
 
     try:
-        scan = create_scan(
-            db=db,
-            user_id=current_user.id,
-            filename=file.filename,
-            sha256=sha256,
-            is_malicious=is_malicious,
-            matched_rule=matched_rule,
-            scan_status="COMPLETED",
-        )
-    except IntegrityError:
-        db.rollback()
-
-        # Protect against a race where another request created
-        # the same SHA256 between the checks above.
+        # Check whether this user already has this scan.
         existing_scan = get_scan_by_sha256(
             db=db,
             sha256=sha256,
@@ -111,26 +90,99 @@ def upload_file(
 
             return existing_scan
 
+        # The database enforces globally unique SHA256 values.
+        # Check for another user's scan without exposing its details.
+        global_existing_scan = db.scalar(
+            select(Scan).where(Scan.sha256 == sha256)
+        )
+
+        if global_existing_scan:
+            create_audit_log(
+                db=db,
+                event="Scan Duplicate Detected",
+                user_email=current_user.email,
+                ip_address=request.client.host,
+            )
+
+            raise HTTPException(
+                status_code=409,
+                detail="A scan for this file already exists.",
+            )
+
+        # Analyze the securely stored file.
+        is_malicious, matched_rule = analyze_file(file_path)
+
+        try:
+            scan = create_scan(
+                db=db,
+                user_id=current_user.id,
+                filename=sanitize_filename(file.filename),
+                sha256=sha256,
+                is_malicious=is_malicious,
+                matched_rule=matched_rule,
+                scan_status="COMPLETED",
+            )
+
+        except IntegrityError:
+            db.rollback()
+
+            # Protect against a race where another request created
+            # the same SHA256 between the checks above.
+            existing_scan = get_scan_by_sha256(
+                db=db,
+                sha256=sha256,
+                user_id=current_user.id,
+            )
+
+            if existing_scan:
+                create_audit_log(
+                    db=db,
+                    event="Scan Duplicate Detected",
+                    user_email=current_user.email,
+                    ip_address=request.client.host,
+                )
+
+                return existing_scan
+
+            create_audit_log(
+                db=db,
+                event="Scan Duplicate Detected",
+                user_email=current_user.email,
+                ip_address=request.client.host,
+            )
+
+            raise HTTPException(
+                status_code=409,
+                detail="A scan for this file already exists.",
+            ) from None
+
         create_audit_log(
             db=db,
-            event="Scan Duplicate Detected",
+            event="Scan Uploaded",
             user_email=current_user.email,
             ip_address=request.client.host,
         )
 
+        return scan
+
+    except HTTPException:
+        # HTTP errors are intentional responses and should not be
+        # converted into generic 500 errors.
+        if file_created and path.exists():
+            path.unlink()
+
+        raise
+
+    except Exception:
+        db.rollback()
+
+        if file_created and path.exists():
+            path.unlink()
+
         raise HTTPException(
-            status_code=409,
-            detail="A scan for this file already exists.",
-        )
-
-    create_audit_log(
-        db=db,
-        event="Scan Uploaded",
-        user_email=current_user.email,
-        ip_address=request.client.host,
-    )
-
-    return scan
+            status_code=500,
+            detail="File analysis failed.",
+        ) from None
 
 
 @router.get(

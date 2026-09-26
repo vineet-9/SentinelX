@@ -1,4 +1,5 @@
 import hashlib
+import re
 from pathlib import Path
 from uuid import UUID
 
@@ -6,6 +7,7 @@ from fastapi import UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.yara_engine import scan_file
 from app.models.scan import Scan
 
@@ -13,22 +15,92 @@ from app.models.scan import Scan
 UPLOAD_DIR = Path("app/uploads")
 
 
-def save_file(file: UploadFile) -> tuple[str, str]:
+def sanitize_filename(filename: str | None) -> str:
     """
-    Save uploaded file and return:
-    (file_path, sha256_hash)
+    Sanitize a client-provided filename for safe database storage.
+
+    The filename is never used as a filesystem path.
+    """
+    if not filename:
+        return "unnamed_file"
+
+    # Remove both Unix and Windows path components.
+    safe_name = re.split(r"[\\/]", filename)[-1]
+
+    # Remove control characters.
+    safe_name = "".join(
+        character
+        for character in safe_name
+        if character.isprintable()
+    )
+
+    safe_name = safe_name.strip()
+
+    if not safe_name:
+        return "unnamed_file"
+
+    # Keep database values reasonably bounded.
+    return safe_name[:255]
+
+
+def save_file(file: UploadFile) -> tuple[str, str, bool]:
+    """
+    Save an uploaded file using its SHA-256 hash as the filesystem name.
+
+    Returns:
+        (file_path, sha256_hash, file_created)
+
+    Security properties:
+    - Rejects empty files.
+    - Enforces the configured maximum size.
+    - Never uses the client filename as a filesystem path.
+    - Hashes content while reading.
+    - Uses the SHA-256 hash as the storage filename.
     """
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-    file_path = UPLOAD_DIR / file.filename
-    content = file.file.read()
+    max_size = settings.max_upload_size_mb * 1024 * 1024
 
-    with open(file_path, "wb") as buffer:
-        buffer.write(content)
+    hasher = hashlib.sha256()
+    total_size = 0
+    chunks: list[bytes] = []
 
-    sha256 = hashlib.sha256(content).hexdigest()
+    while True:
+        chunk = file.file.read(1024 * 1024)
 
-    return str(file_path), sha256
+        if not chunk:
+            break
+
+        total_size += len(chunk)
+
+        if total_size > max_size:
+            raise ValueError(
+                f"File exceeds the maximum allowed size of "
+                f"{settings.max_upload_size_mb} MB."
+            )
+
+        hasher.update(chunk)
+        chunks.append(chunk)
+
+    if total_size == 0:
+        raise ValueError("Uploaded file is empty.")
+
+    sha256 = hasher.hexdigest()
+
+    # Never use the original filename for filesystem storage.
+    file_path = UPLOAD_DIR / f"{sha256}.bin"
+
+    file_created = False
+
+    # Avoid overwriting an existing file with the same content.
+    if not file_path.exists():
+        with open(file_path, "wb") as buffer:
+            for chunk in chunks:
+                buffer.write(chunk)
+
+        file_created = True
+
+    return str(file_path), sha256, file_created
 
 
 def analyze_file(file_path: str) -> tuple[bool, str | None]:
