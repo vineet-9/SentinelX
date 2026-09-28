@@ -22,7 +22,10 @@ export default function Profile() {
       <Card>
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
           <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-blue-500/10">
-            <User className="h-10 w-10 text-blue-400" />
+            <User
+              className="h-10 w-10 text-blue-400"
+              aria-hidden="true"
+            />
           </div>
 
           <div>
@@ -33,7 +36,10 @@ export default function Profile() {
             <p className="mt-1 text-zinc-400">{user.email}</p>
 
             <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-300">
-              <Shield className="h-4 w-4" />
+              <Shield
+                className="h-4 w-4"
+                aria-hidden="true"
+              />
               {user.is_superuser ? "Administrator" : "User"}
             </div>
           </div>
@@ -49,7 +55,10 @@ export default function Profile() {
           <Card>
             <div className="flex items-start gap-4">
               <div className="rounded-lg bg-zinc-800 p-2">
-                <UserCheck className="h-5 w-5 text-zinc-300" />
+                <UserCheck
+                  className="h-5 w-5 text-zinc-300"
+                  aria-hidden="true"
+                />
               </div>
 
               <div className="min-w-0">
@@ -64,7 +73,10 @@ export default function Profile() {
           <Card>
             <div className="flex items-start gap-4">
               <div className="rounded-lg bg-zinc-800 p-2">
-                <Mail className="h-5 w-5 text-zinc-300" />
+                <Mail
+                  className="h-5 w-5 text-zinc-300"
+                  aria-hidden="true"
+                />
               </div>
 
               <div className="min-w-0">
@@ -79,7 +91,10 @@ export default function Profile() {
           <Card>
             <div className="flex items-start gap-4">
               <div className="rounded-lg bg-zinc-800 p-2">
-                <Shield className="h-5 w-5 text-zinc-300" />
+                <Shield
+                  className="h-5 w-5 text-zinc-300"
+                  aria-hidden="true"
+                />
               </div>
 
               <div className="min-w-0">
@@ -94,7 +109,10 @@ export default function Profile() {
           <Card>
             <div className="flex items-start gap-4">
               <div className="rounded-lg bg-zinc-800 p-2">
-                <UserCheck className="h-5 w-5 text-zinc-300" />
+                <UserCheck
+                  className="h-5 w-5 text-zinc-300"
+                  aria-hidden="true"
+                />
               </div>
 
               <div className="min-w-0">
