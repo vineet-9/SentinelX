@@ -29,8 +29,8 @@ export default function Login() {
       await refreshUser();
 
       navigate("/", { replace: true });
-    } catch (err) {
-      console.error(err);
+    } catch (err: unknown) {
+      console.error("Login failed:", err);
       setError("Invalid email or password.");
     } finally {
       setLoading(false);
@@ -42,7 +42,10 @@ export default function Login() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-500/10">
-            <ShieldCheck className="h-9 w-9 text-blue-400" />
+            <ShieldCheck
+              className="h-9 w-9 text-blue-400"
+              aria-hidden="true"
+            />
           </div>
 
           <h1 className="mt-6 text-3xl font-bold text-white">
@@ -101,13 +104,15 @@ export default function Login() {
                 onChange={(event) => setPassword(event.target.value)}
                 required
                 autoComplete="current-password"
-                placeholder="••••••••"
                 className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-blue-500"
               />
             </div>
 
             {error && (
-              <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+              <div
+                role="alert"
+                className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400"
+              >
                 {error}
               </div>
             )}
@@ -120,6 +125,7 @@ export default function Login() {
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
+
           <p className="mt-6 text-center text-sm text-zinc-500">
             Don't have an account?{" "}
             <Link
