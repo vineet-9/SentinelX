@@ -23,13 +23,12 @@ export default function StatCard({
     <Card className="relative overflow-hidden">
       <div
         className={`absolute left-0 top-0 h-full w-1 ${accentColor}`}
+        aria-hidden="true"
       />
 
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-zinc-400">
-            {title}
-          </p>
+          <p className="text-sm text-zinc-400">{title}</p>
 
           <h2 className="mt-2 text-5xl font-bold text-white">
             {value}
@@ -43,7 +42,10 @@ export default function StatCard({
         </div>
 
         <div className="rounded-xl bg-zinc-800 p-4">
-          <Icon className={`h-10 w-10 ${iconColor}`} />
+          <Icon
+            className={`h-10 w-10 ${iconColor}`}
+            aria-hidden="true"
+          />
         </div>
       </div>
     </Card>
