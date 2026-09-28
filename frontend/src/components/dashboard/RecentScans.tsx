@@ -1,14 +1,14 @@
 import {
-  FileText,
-  FileImage,
   FileArchive,
   FileCode2,
+  FileImage,
+  FileText,
 } from "lucide-react";
-
+import type { KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
-import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
+import Card from "@/components/ui/Card";
 
 type Scan = {
   id: string;
@@ -23,32 +23,41 @@ type Props = {
 };
 
 function getFileIcon(filename: string) {
-  const extension = filename
-    .split(".")
-    .pop()
-    ?.toLowerCase();
+  const extension = filename.split(".").pop()?.toLowerCase();
 
   switch (extension) {
     case "exe":
       return (
-        <FileCode2 className="h-5 w-5 text-red-400" />
+        <FileCode2
+          className="h-5 w-5 text-red-400"
+          aria-hidden="true"
+        />
       );
 
     case "jpg":
     case "jpeg":
     case "png":
       return (
-        <FileImage className="h-5 w-5 text-blue-400" />
+        <FileImage
+          className="h-5 w-5 text-blue-400"
+          aria-hidden="true"
+        />
       );
 
     case "zip":
       return (
-        <FileArchive className="h-5 w-5 text-yellow-400" />
+        <FileArchive
+          className="h-5 w-5 text-yellow-400"
+          aria-hidden="true"
+        />
       );
 
     default:
       return (
-        <FileText className="h-5 w-5 text-zinc-400" />
+        <FileText
+          className="h-5 w-5 text-zinc-400"
+          aria-hidden="true"
+        />
       );
   }
 }
@@ -56,9 +65,22 @@ function getFileIcon(filename: string) {
 export default function RecentScans({ scans }: Props) {
   const navigate = useNavigate();
 
+  function openScan(scanId: string) {
+    navigate(`/scan/${scanId}`);
+  }
+
+  function handleRowKeyDown(
+    event: KeyboardEvent<HTMLTableRowElement>,
+    scanId: string,
+  ) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openScan(scanId);
+    }
+  }
+
   return (
     <Card>
-      {/* Section Header */}
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-white">
           Recent Scans
@@ -69,26 +91,14 @@ export default function RecentScans({ scans }: Props) {
         </p>
       </div>
 
-      {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead className="border-b border-zinc-800 text-sm text-zinc-500">
             <tr>
-              <th className="pb-4 font-medium">
-                File
-              </th>
-
-              <th className="pb-4 font-medium">
-                Status
-              </th>
-
-              <th className="pb-4 font-medium">
-                Rule
-              </th>
-
-              <th className="pb-4 font-medium">
-                SHA256
-              </th>
+              <th className="pb-4 font-medium">File</th>
+              <th className="pb-4 font-medium">Status</th>
+              <th className="pb-4 font-medium">Rule</th>
+              <th className="pb-4 font-medium">SHA256</th>
             </tr>
           </thead>
 
@@ -96,12 +106,15 @@ export default function RecentScans({ scans }: Props) {
             {scans.map((scan) => (
               <tr
                 key={scan.id}
-                onClick={() =>
-                  navigate(`/scan/${scan.id}`)
+                role="button"
+                tabIndex={0}
+                aria-label={`View scan details for ${scan.filename}`}
+                onClick={() => openScan(scan.id)}
+                onKeyDown={(event) =>
+                  handleRowKeyDown(event, scan.id)
                 }
-                className="cursor-pointer border-b border-zinc-800/70 transition-colors hover:bg-zinc-800/40 last:border-none"
+                className="cursor-pointer border-b border-zinc-800/70 transition-colors hover:bg-zinc-800/40 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 last:border-none"
               >
-                {/* File */}
                 <td className="py-4">
                   <div className="flex items-center gap-3">
                     {getFileIcon(scan.filename)}
@@ -121,7 +134,6 @@ export default function RecentScans({ scans }: Props) {
                   </div>
                 </td>
 
-                {/* Status */}
                 <td className="py-4">
                   <Badge
                     text={
@@ -137,12 +149,10 @@ export default function RecentScans({ scans }: Props) {
                   />
                 </td>
 
-                {/* Rule */}
                 <td className="py-4 text-zinc-400">
                   {scan.matched_rule ?? "—"}
                 </td>
 
-                {/* SHA256 */}
                 <td className="py-4">
                   <code className="text-xs text-zinc-500">
                     {scan.sha256.slice(0, 12)}...
@@ -151,7 +161,6 @@ export default function RecentScans({ scans }: Props) {
               </tr>
             ))}
 
-            {/* Empty State */}
             {scans.length === 0 && (
               <tr>
                 <td
