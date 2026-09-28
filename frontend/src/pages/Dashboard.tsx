@@ -1,12 +1,7 @@
-import {
-  Shield,
-  Bug,
-  CheckCircle,
-  RefreshCw,
-} from "lucide-react";
+import { Bug, CheckCircle, RefreshCw, Shield } from "lucide-react";
 
-import StatCard from "@/components/dashboard/StatCard";
 import RecentScans from "@/components/dashboard/RecentScans";
+import StatCard from "@/components/dashboard/StatCard";
 import { useDashboard } from "@/hooks/useDashboard";
 
 export default function Dashboard() {
@@ -14,6 +9,7 @@ export default function Dashboard() {
     stats,
     scans,
     loading,
+    refreshing,
     error,
     refresh,
   } = useDashboard();
@@ -21,9 +17,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <div className="text-zinc-400">
-          Loading dashboard...
-        </div>
+        <div className="text-zinc-400">Loading dashboard...</div>
       </div>
     );
   }
@@ -42,10 +36,15 @@ export default function Dashboard() {
         <button
           type="button"
           onClick={refresh}
-          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
+          disabled={refreshing}
+          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <RefreshCw className="h-4 w-4" />
-          Retry
+          <RefreshCw
+            className={`h-4 w-4 ${
+              refreshing ? "animate-spin" : ""
+            }`}
+          />
+          {refreshing ? "Retrying..." : "Retry"}
         </button>
       </div>
     );
@@ -53,7 +52,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-4xl font-bold text-white">
             Dashboard
@@ -65,15 +64,22 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Refresh button */}
           <button
             type="button"
             onClick={refresh}
-            className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-800 hover:text-white"
+            disabled={refreshing}
+            className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <RefreshCw className="h-4 w-4" />
-            Refresh
+            <RefreshCw
+              className={`h-4 w-4 ${
+                refreshing ? "animate-spin" : ""
+              }`}
+            />
+            {refreshing ? "Refreshing..." : "Refresh"}
           </button>
 
+          {/* System status */}
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-6 py-4">
             <p className="text-sm text-zinc-500">
               System Status

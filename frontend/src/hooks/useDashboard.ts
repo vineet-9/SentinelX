@@ -11,11 +11,12 @@ export function useDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [scans, setScans] = useState<Scan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async () => {
     try {
-      setLoading(true);
+      setRefreshing(true);
       setError(null);
 
       const [statsData, historyData] = await Promise.all([
@@ -25,20 +26,19 @@ export function useDashboard() {
 
       setStats(statsData);
       setScans(historyData);
-    } catch (err) {
-      console.error(err);
+    } catch (err: unknown) {
+      console.error("Failed to load dashboard data:", err);
       setError("Unable to load dashboard data.");
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
+    async function loadInitialDashboard() {
       try {
-        setLoading(true);
         setError(null);
 
         const [statsData, historyData] = await Promise.all([
@@ -52,12 +52,12 @@ export function useDashboard() {
 
         setStats(statsData);
         setScans(historyData);
-      } catch (err) {
+      } catch (err: unknown) {
         if (cancelled) {
           return;
         }
 
-        console.error(err);
+        console.error("Failed to load dashboard data:", err);
         setError("Unable to load dashboard data.");
       } finally {
         if (!cancelled) {
@@ -66,7 +66,7 @@ export function useDashboard() {
       }
     }
 
-    load();
+    loadInitialDashboard();
 
     return () => {
       cancelled = true;
@@ -77,6 +77,7 @@ export function useDashboard() {
     stats,
     scans,
     loading,
+    refreshing,
     error,
     refresh: loadDashboard,
   };
