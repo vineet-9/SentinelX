@@ -74,7 +74,10 @@ export default function Register() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-500/10">
-            <ShieldCheck className="h-9 w-9 text-blue-400" />
+            <ShieldCheck
+              className="h-9 w-9 text-blue-400"
+              aria-hidden="true"
+            />
           </div>
 
           <h1 className="mt-6 text-3xl font-bold text-white">
@@ -157,7 +160,6 @@ export default function Register() {
                 minLength={12}
                 maxLength={128}
                 autoComplete="new-password"
-                placeholder="••••••••••••"
                 className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-blue-500"
               />
 
@@ -183,7 +185,6 @@ export default function Register() {
                 }
                 required
                 autoComplete="new-password"
-                placeholder="••••••••••••"
                 className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-blue-500"
               />
             </div>
