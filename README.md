@@ -1,403 +1,151 @@
-<div align="center">
-
 # SentinelX
 
-### Malware Analysis & Threat Intelligence Platform
+> A web-based malware analysis platform built as a robust cybersecurity portfolio project.
 
-A security-focused web platform for analyzing uploaded files, detecting malware with YARA, enriching results with VirusTotal, and maintaining an auditable scan history.
-
-![Python](https://img.shields.io/badge/Python-3.13-blue?style=for-the-badge&logo=python)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.116+-009688?style=for-the-badge&logo=fastapi)
-![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react)
-![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?style=for-the-badge&logo=typescript)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-336791?style=for-the-badge&logo=postgresql)
-![YARA](https://img.shields.io/badge/YARA-Malware%20Detection-8A2BE2?style=for-the-badge)
-
-</div>
+SentinelX provides automated file scanning utilizing YARA rules, SHA-256 hash generation, VirusTotal enrichment, user authentication, scan history tracking, and comprehensive security auditing.
 
 ---
 
-## Overview
+## 🚀 Features
 
-SentinelX is a production-oriented malware analysis platform built to demonstrate secure backend engineering, malware detection workflows, threat intelligence enrichment, authentication, authorization, auditability, and a modern security-focused frontend.
-
-Users can upload files for analysis and receive a consolidated result containing:
-
-- SHA-256 file identification
-- YARA rule detection
-- Malware classification
-- VirusTotal hash intelligence
-- Scan status and timestamps
-- Persistent scan history
-- Detailed scan results
-
-The platform also provides role-based administrative access and security audit logging.
+* **Malware File Scanning:** Securely upload and analyze suspicious files.
+* **YARA Detection:** Match uploaded samples against custom and standard YARA rulesets.
+* **SHA-256 Hashing:** Instantly compute unique file hashes for quick lookups.
+* **VirusTotal Integration:** Cross-reference file hashes with VirusTotal for threat intelligence.
+* **Authentication & Authorization:** Secure user login with role-based access control (RBAC).
+* **Scan History & Details:** Review past scan logs, audit events, and detailed analysis reports.
+* **Dashboard Statistics:** High-level metrics and system usage overview.
+* **Security Audit Logging:** Track administrative actions and system events.
 
 ---
 
-## Core Capabilities
+## 🛠️ Tech Stack
 
-### Malware Analysis
-
-- Secure file upload
-- Configurable maximum upload size
-- Empty-file rejection
-- Filename sanitization
-- SHA-256 hashing
-- Persistent scan records
-- YARA-based malware detection
-- Detection rule reporting
-- Scan status tracking
-- Duplicate file detection
-
-### VirusTotal Intelligence
-
-- SHA-256 based VirusTotal lookup
-- Persisted VirusTotal results
-- Detection statistics
-- Reputation information
-- Last analysis timestamp
-- Cached results to reduce unnecessary external lookups
-- Graceful handling of VirusTotal failures
-
-### Authentication & Authorization
-
-- JWT-based authentication
-- Secure password hashing
-- User registration
-- Login/logout flow
-- Protected application routes
-- Current-user endpoint
-- Role-based access control
-- Superuser-only security audit access
-- Cross-user scan isolation
-
-### Security Audit Logging
-
-Security-sensitive events are recorded for administrative review, including:
-
-- Successful authentication
-- Failed authentication
-- Scan uploads
-- Duplicate detections
-- VirusTotal lookups
-- VirusTotal cache usage
-- Unauthorized administrative access
-- Rejected uploads
-
-### Dashboard
-
-The dashboard provides:
-
-- Total scan count
-- Malicious scan count
-- Clean scan count
-- Recent scan activity
-- Scan status indicators
-- Manual refresh with non-blocking UI state
-
-### Scan History & Details
-
-Users can:
-
-- View their scan history
-- Open individual scan details
-- Review SHA-256 hashes
-- Review YARA detections
-- Review VirusTotal intelligence
-- Navigate between history and scan details
-
-### Frontend Security & UX
-
-- Protected routes
-- Authentication state management
-- Responsive navigation
-- Keyboard-accessible interactive elements
-- Accessible form controls
-- Accessible status/error messages
-- Responsive dashboard layout
-- Dedicated 404 page
-- Clear loading and error states
+| Component | Technology |
+| :--- | :--- |
+| **Backend** | Python, FastAPI, PostgreSQL, SQLAlchemy, Alembic |
+| **Frontend** | React, TypeScript, Vite, Tailwind CSS |
+| **Security & Intel** | JSON Web Tokens (JWT), YARA, VirusTotal API |
 
 ---
 
-## Security Controls
-
-SentinelX includes several defensive controls designed for a malware-analysis workflow.
-
-### Upload Security
-
-- 10 MB default upload limit
-- Configurable upload size
-- Empty-file rejection
-- Filename sanitization
-- SHA-256 integrity identification
-- Controlled upload storage
-- Cleanup on failed processing
-- Duplicate detection
-
-### Authentication Security
-
-- JWT access tokens
-- UUID-based JWT subject identifiers
-- Generic authentication failure messages
-- Invalid/expired token handling
-- Inactive-user protection
-- Failed-login auditing
-
-### Authorization
-
-Protected resources enforce ownership and role boundaries.
-
-A user can access only their own scan records, while security audit data is restricted to authorized administrators.
-
-Cross-user access attempts are rejected rather than exposing another user's scan data.
-
-### HTTP Security
-
-The backend includes security-oriented HTTP response headers and configured CORS behavior.
-
----
-
-## Architecture
+## 📁 Project Structure
 
 ```text
-┌──────────────────────┐
-│      React UI        │
-│   React + TypeScript │
-└──────────┬───────────┘
-           │
-           │ HTTP / JWT
-           ▼
-┌──────────────────────┐
-│       FastAPI        │
-│      REST API        │
-└──────────┬───────────┘
-           │
-     ┌─────┼───────────────┐
-     │     │               │
-     ▼     ▼               ▼
- PostgreSQL YARA      VirusTotal API
-     │     │               │
-     └─────┴───────────────┘
-           │
-           ▼
-      Scan Results
-      & Audit Logs
-Tech Stack
-Backend
-Python 3.13
-FastAPI
-SQLAlchemy 2
-PostgreSQL
-Alembic
-Pydantic
-JWT authentication
-Passlib
-YARA
-VirusTotal API
-Pytest
-Frontend
-React 19
-TypeScript
-Vite
-Tailwind CSS
-React Router
-Axios
-Lucide React
-React Hook Form
-Zod
-ESLint
-Project Structure
 SentinelX/
-├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   ├── core/
-│   │   ├── database/
-│   │   ├── models/
-│   │   ├── schemas/
-│   │   ├── services/
-│   │   ├── tests/
-│   │   └── main.py
-│   ├── alembic/
-│   ├── requirements.txt
-│   └── .env.example
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── context/
-│   │   ├── hooks/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   └── main.tsx
-│   ├── package.json
-│   └── .env.example
-│
-└── README.md
-Local Development
-Prerequisites
-Python 3.13
-Node.js
-PostgreSQL
-YARA-compatible Python environment
-VirusTotal API key for VirusTotal enrichment
-Backend
+├── backend/            # FastAPI application & business logic
+├── frontend/           # React, TypeScript, & Vite client
+├── database/           # Database scripts & migrations
+├── LICENSE             # Project license
+└── README.md           # Project documentation
+```
+
+---
+
+## ⚙️ Getting Started & Installation
+
+Follow these steps to set up and run SentinelX locally for development and testing.
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/vineet-9/SentinelX.git
+cd SentinelX
+```
+
+### 2. Configure the Environment
+
+Install and start PostgreSQL, then create a dedicated database for SentinelX. 
+
+Next, copy the environment template:
+```bash
+cp backend/.env.example backend/.env
+```
+> [!NOTE]
+> Open `backend/.env` and configure your database connection string, JWT secret key, and VirusTotal API key. **Do not commit your `.env` file to version control.**
+
+---
+
+### 3. Set Up the Backend
+
+Open a terminal from the project root and run:
+
+```bash
+# Navigate to the backend directory
 cd backend
 
-Create and activate the virtual environment:
-
+# Create and activate a virtual environment
 python -m venv venv
+# On Windows (PowerShell):
 .\venv\Scripts\Activate.ps1
+# On macOS/Linux:
+# source venv/bin/activate
 
-Install dependencies:
-
+# Install Python dependencies
 pip install -r requirements.txt
 
-Configure environment variables using:
-
-backend/.env.example
-
-Run database migrations:
-
+# Run database migrations
 alembic upgrade head
 
-Start the API:
-
+# Start the FastAPI development server
 uvicorn app.main:app --reload
+```
 
-The API will be available at:
+* **API Base URL:** `http://127.0.0.1:8000`
+* **Interactive Documentation:** `http://127.0.0.1:8000/docs`
 
-http://127.0.0.1:8000
+---
 
-Interactive API documentation:
+### 4. Set Up the Frontend
 
-http://127.0.0.1:8000/docs
-Frontend
+Open a **second terminal** from the project root:
 
-Open a second terminal:
-
+```bash
+# Navigate to the frontend directory
 cd frontend
 
-Install dependencies:
-
+# Install dependencies
 npm install
 
-Configure:
+# Create a frontend environment file
+echo "VITE_API_BASE_URL=http://127.0.0.1:8000" > .env
 
-frontend/.env.example
-
-Start the development server:
-
+# Start the Vite development server
 npm run dev
+```
 
-The frontend will normally be available at:
+Open the local development URL provided by Vite (typically `http://localhost:5173`).
 
-http://localhost:5173
-Testing
-Backend
+---
 
-Run the complete backend test suite:
+## 🧪 Testing
 
+### Backend Tests
+```bash
 cd backend
 pytest -q
+```
 
-Current verification:
-
-44 passed
-Frontend
-
-Run linting:
-
+### Frontend Checks & Build
+```bash
 cd frontend
 npm run lint
-
-Run the production build:
-
 npm run build
+```
 
-Both checks currently pass.
+---
 
-API Areas
+## 🛡️ Security Implementation
 
-The backend exposes endpoints covering:
+SentinelX incorporates multiple layers of security best practices:
+* **Authentication & RBAC:** Secure token-based access with protected admin endpoints.
+* **Validation & Hashing:** Strict upload validation coupled with SHA-256 fingerprinting.
+* **Audit Controls:** Comprehensive security audit logging for system tracking.
+* **Network & Headers:** Configured CORS controls and security response headers.
+* **Performance:** Intelligent caching layer for VirusTotal lookup results.
 
-Authentication
-POST /auth/register
-POST /auth/login
-GET  /auth/me
-Malware Scanning
-POST /scan/upload
-GET  /scan/history
-GET  /scan/stats
-GET  /scan/{scan_id}
-Security Administration
-GET /audit
+---
 
-Administrative endpoints require appropriate authorization.
+## 📄 License
 
-Security Design Principles
-
-SentinelX was developed with the following principles:
-
-Least-privilege access
-Explicit authentication and authorization
-User-level resource isolation
-Secure input handling
-Defensive upload processing
-Hash-based file identification
-Auditable security events
-Generic authentication errors
-Configurable security limits
-Fail-safe authorization behavior
-Automated backend testing
-Clean separation between frontend and backend responsibilities
-Current Status
-
-Status: Functional portfolio-ready build
-
-Implemented and verified:
-
-Authentication
-Registration
-JWT authorization
-Role-based access control
-Secure file upload
-SHA-256 hashing
-YARA detection
-VirusTotal enrichment
-Duplicate detection
-Scan history
-Scan details
-Dashboard statistics
-Security audit logging
-Responsive frontend
-Protected routes
-Administrative security view
-Error handling
-Accessibility improvements
-Backend automated tests
-Frontend linting
-Production frontend build
-Future Enhancements
-
-Potential future development areas include:
-
-Background scan processing for larger workloads
-Additional static-analysis engines
-Sandbox execution
-Advanced IOC extraction
-Threat intelligence provider integrations
-Detection rule management
-Analyst investigation workflows
-Advanced reporting
-Metrics and observability
-Containerized deployment
-CI/CD security checks
-
-These are future enhancements and are not represented as currently implemented functionality.
-
-License
-
-MIT License
+Distributed under the terms specified in the [LICENSE](LICENSE) file.
