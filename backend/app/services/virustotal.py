@@ -6,12 +6,17 @@ from app.core.config import settings
 BASE_URL = "https://www.virustotal.com/api/v3/files"
 
 
+class VirusTotalResponseError(Exception):
+    """Raised when VirusTotal returns an unexpected response structure."""
+
+
 def lookup_file(sha256: str) -> dict:
     """
     Query VirusTotal by SHA-256 hash.
 
-    Returns a normalized dictionary regardless of whether the file
-    exists in VirusTotal.
+    Returns a normalized dictionary when the request succeeds.
+    Network/request failures are treated as unavailable results.
+    Malformed successful responses raise VirusTotalResponseError.
     """
 
     headers = {
@@ -39,9 +44,13 @@ def lookup_file(sha256: str) -> dict:
 
         response.raise_for_status()
 
-        attributes = response.json()["data"]["attributes"]
-
-        stats = attributes["last_analysis_stats"]
+        try:
+            attributes = response.json()["data"]["attributes"]
+            stats = attributes["last_analysis_stats"]
+        except (KeyError, TypeError, ValueError) as exc:
+            raise VirusTotalResponseError(
+                "Unexpected VirusTotal response structure."
+            ) from exc
 
         return {
             "sha256": sha256,

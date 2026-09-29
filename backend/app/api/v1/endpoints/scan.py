@@ -1,12 +1,17 @@
+from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.database.dependencies import get_db
+from app.database.dependencies import get_current_user, get_db
+from app.models.scan import Scan
+from app.models.user import User
 from app.schemas.scan import ScanResponse, ScanStatsResponse
 from app.schemas.virustotal import VirusTotalResponse
-
+from app.services.audit_service import create_audit_log
 from app.services.scan_service import (
     analyze_file,
     create_scan,
@@ -14,11 +19,15 @@ from app.services.scan_service import (
     get_scan_by_id,
     get_scan_by_sha256,
     get_scan_stats,
+    sanitize_filename,
     save_file,
     update_scan_virustotal,
 )
+from app.services.virustotal import (
+    VirusTotalResponseError,
+    lookup_file,
+)
 
-from app.services.virustotal import lookup_file
 
 router = APIRouter(
     prefix="/scan",
@@ -31,27 +40,152 @@ router = APIRouter(
     response_model=ScanResponse,
 )
 def upload_file(
+    request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    file_path, sha256 = save_file(file)
+    """
+    Upload and analyze a file securely.
 
-    existing_scan = get_scan_by_sha256(db, sha256)
-    if existing_scan:
-        return existing_scan
+    Security controls:
+    - Requires authentication.
+    - Enforces upload validation in save_file().
+    - Never uses the client filename as a filesystem path.
+    - Stores files using their SHA-256-derived filename.
+    - Prevents duplicate scans.
+    - Cleans up files created by a failed request.
+    """
 
-    is_malicious, matched_rule = analyze_file(file_path)
+    try:
+        file_path, sha256, file_created = save_file(file)
 
-    scan = create_scan(
-        db=db,
-        filename=file.filename,
-        sha256=sha256,
-        is_malicious=is_malicious,
-        matched_rule=matched_rule,
-        scan_status="COMPLETED",
-    )
+    except ValueError as exc:
+        create_audit_log(
+            db=db,
+            event="Rejected File Upload",
+            user_email=current_user.email,
+            ip_address=request.client.host,
+        )
 
-    return scan
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    path = Path(file_path)
+
+    try:
+        # Check whether this user already has this scan.
+        existing_scan = get_scan_by_sha256(
+            db=db,
+            sha256=sha256,
+            user_id=current_user.id,
+        )
+
+        if existing_scan:
+            create_audit_log(
+                db=db,
+                event="Scan Duplicate Detected",
+                user_email=current_user.email,
+                ip_address=request.client.host,
+            )
+
+            return existing_scan
+
+        # The database enforces globally unique SHA256 values.
+        # Check for another user's scan without exposing its details.
+        global_existing_scan = db.scalar(
+            select(Scan).where(Scan.sha256 == sha256)
+        )
+
+        if global_existing_scan:
+            create_audit_log(
+                db=db,
+                event="Scan Duplicate Detected",
+                user_email=current_user.email,
+                ip_address=request.client.host,
+            )
+
+            raise HTTPException(
+                status_code=409,
+                detail="A scan for this file already exists.",
+            )
+
+        # Analyze the securely stored file.
+        is_malicious, matched_rule = analyze_file(file_path)
+
+        try:
+            scan = create_scan(
+                db=db,
+                user_id=current_user.id,
+                filename=sanitize_filename(file.filename),
+                sha256=sha256,
+                is_malicious=is_malicious,
+                matched_rule=matched_rule,
+                scan_status="COMPLETED",
+            )
+
+        except IntegrityError:
+            db.rollback()
+
+            # Protect against a race where another request created
+            # the same SHA256 between the checks above.
+            existing_scan = get_scan_by_sha256(
+                db=db,
+                sha256=sha256,
+                user_id=current_user.id,
+            )
+
+            if existing_scan:
+                create_audit_log(
+                    db=db,
+                    event="Scan Duplicate Detected",
+                    user_email=current_user.email,
+                    ip_address=request.client.host,
+                )
+
+                return existing_scan
+
+            create_audit_log(
+                db=db,
+                event="Scan Duplicate Detected",
+                user_email=current_user.email,
+                ip_address=request.client.host,
+            )
+
+            raise HTTPException(
+                status_code=409,
+                detail="A scan for this file already exists.",
+            ) from None
+
+        create_audit_log(
+            db=db,
+            event="Scan Uploaded",
+            user_email=current_user.email,
+            ip_address=request.client.host,
+        )
+
+        return scan
+
+    except HTTPException:
+        # HTTP errors are intentional responses and should not be
+        # converted into generic 500 errors.
+        if file_created and path.exists():
+            path.unlink()
+
+        raise
+
+    except Exception:
+        db.rollback()
+
+        if file_created and path.exists():
+            path.unlink()
+
+        raise HTTPException(
+            status_code=500,
+            detail="File analysis failed.",
+        ) from None
 
 
 @router.get(
@@ -60,8 +194,12 @@ def upload_file(
 )
 def scan_history(
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    return get_all_scans(db)
+    return get_all_scans(
+        db=db,
+        user_id=current_user.id,
+    )
 
 
 @router.get(
@@ -70,8 +208,12 @@ def scan_history(
 )
 def scan_stats(
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    return get_scan_stats(db)
+    return get_scan_stats(
+        db=db,
+        user_id=current_user.id,
+    )
 
 
 @router.get(
@@ -81,8 +223,13 @@ def scan_stats(
 def get_scan(
     scan_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    scan = get_scan_by_id(db, scan_id)
+    scan = get_scan_by_id(
+        db=db,
+        scan_id=scan_id,
+        user_id=current_user.id,
+    )
 
     if not scan:
         raise HTTPException(
@@ -98,10 +245,16 @@ def get_scan(
     response_model=VirusTotalResponse,
 )
 def get_virustotal_report(
+    request: Request,
     scan_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    scan = get_scan_by_id(db, scan_id)
+    scan = get_scan_by_id(
+        db=db,
+        scan_id=scan_id,
+        user_id=current_user.id,
+    )
 
     if not scan:
         raise HTTPException(
@@ -109,8 +262,15 @@ def get_virustotal_report(
             detail="Scan not found",
         )
 
-    # Return cached data
+    # Return cached data.
     if scan.vt_found:
+        create_audit_log(
+            db=db,
+            event="VirusTotal Cache Used",
+            user_email=current_user.email,
+            ip_address=request.client.host,
+        )
+
         return VirusTotalResponse(
             sha256=scan.sha256,
             found=scan.vt_found,
@@ -123,14 +283,27 @@ def get_virustotal_report(
             cached=True,
         )
 
-    # Query VirusTotal
-    vt_result = lookup_file(scan.sha256)
+    # Query VirusTotal.
+    try:
+        vt_result = lookup_file(scan.sha256)
+    except VirusTotalResponseError:
+        raise HTTPException(
+            status_code=502,
+            detail="VirusTotal returned an invalid response.",
+        ) from None
 
-    # Save results
+    # Save results.
     update_scan_virustotal(
         db=db,
         scan=scan,
         vt_data=vt_result,
+    )
+
+    create_audit_log(
+        db=db,
+        event="VirusTotal Lookup",
+        user_email=current_user.email,
+        ip_address=request.client.host,
     )
 
     return VirusTotalResponse(
